@@ -1,22 +1,22 @@
 export const filters = [
   {
     id: 1,
-    name: 'England',
+    name: 'Bvlgari',
   },
   {
     id: 2,
-    name: 'Brazil',
+    name: 'Michael Kors',
   },
   {
     id: 3,
-    name: 'Germany',
+    name: 'Burberry',
   },
   {
     id: 4,
-    name:  'Spain',
+    name:  'Ferragamo',
   },
-  {
+{
     id: 5,
-    name: 'France'
+    name:  'Fendi',
   },
 ]

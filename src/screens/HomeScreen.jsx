@@ -1,123 +1,226 @@
-import { View, Text, Image, ScrollView, Pressable } from 'react-native'
-import React, { useCallback, useEffect, useState } from 'react'
-import axios from 'axios'
-import AsyncStorage from '@react-native-async-storage/async-storage'
-import AntDesign from '@expo/vector-icons/AntDesign';
+import React, { useCallback, useState } from 'react';
+import {
+  View,
+  Text,
+  Image,
+  ScrollView,
+  Pressable,
+  ActivityIndicator,
+  Alert,
+  StyleSheet,
+  TextInput,
+} from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { filters } from '../data/filters';
-import { sortItemsDescending } from '../utils/sortItems';
+import { productService } from '../services/productService';
+import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
 const HomeScreen = () => {
-  const navigation = useNavigation()
-  // Define states
-  const [items, setItems] = useState([])
-  const [favorites, setFavorites] = useState([])
-  const [selectedFilter, setSelectedFilter] = useState('')
+  const navigation = useNavigation();
+  const [items, setItems] = useState([]);
+  const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
 
-  // Define functions
-  const fetchItemList = async () => {
-    const res = await axios.get(process.env.EXPO_PUBLIC_API_URL)
-    const arrangedItems = sortItemsDescending(res.data)
-    setItems(arrangedItems)
-  }
-
-  const fetchFavorites = async () => {
+  // 🔹 Fetch tất cả sản phẩm
+  const fetchAllProducts = async () => {
     try {
-      const storage = await AsyncStorage.getItem('favorites')
-      if (storage) {
-        setFavorites(JSON.parse(storage))
+      setLoading(true);
+
+      const list = await productService.getAllListings({
+        page: 1,
+        limit: 30,
+      });
+
+      // ✅ Chỉ lấy sản phẩm đang bán
+      const activeItems = (list || []).filter((p) => p.status === 'active');
+      setItems(activeItems);
+    } catch (err) {
+      console.error('❌ Fetch products error:', err);
+      if (err?.response?.status === 401) {
+        Alert.alert('Phiên đăng nhập hết hạn', 'Vui lòng đăng nhập lại.');
+        navigation.replace('Login');
       } else {
-        setFavorites([])
+        Alert.alert('Lỗi', 'Không thể tải danh sách sản phẩm.');
       }
-    } catch (error) {
-      console.log(error)
+    } finally {
+      setLoading(false);
     }
-  }
-
-  const handleToggleFavorites = async (item) => {
-    try {
-      let updatedFav
-      const isAddedToFav = favorites.some(fav => fav.id === item.id)
-      if (isAddedToFav) {
-        updatedFav = favorites.filter((fav) => fav.id !== item.id)
-      } else {
-        updatedFav = [...favorites, item]
-      }
-      setFavorites(updatedFav)
-      await AsyncStorage.setItem('favorites', JSON.stringify(updatedFav))
-    } catch (error) {
-      console.log(error)
-    }
-  }
-
-  const fetchFilterItems = async (filter) => {
-    if (filter == selectedFilter) {
-      setSelectedFilter('')
-      fetchItemList()
-    } else {
-      // sửa điều kiện lọc
-      const res = await axios.get(`${process.env.EXPO_PUBLIC_API_URL}?team=${filter}`)
-      // ----------------
-      setItems(res.data)
-      setSelectedFilter(filter)
-    }
-  }
-
-  const handleReset = async () => {
-    try {
-      setSelectedFilter('')
-    } catch (error) {
-      console.log(error)
-    }
-  }
-  // Define useEffect
-  useEffect(() => {
-    fetchItemList()
-  }, [])
+  };
 
   useFocusEffect(
     useCallback(() => {
-      fetchFavorites()
-      handleReset()
+      fetchAllProducts();
     }, [])
-  )
+  );
+
+  const filteredItems = items.filter((item) =>
+    item.title?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  if (loading) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color="#007AFF" />
+      </View>
+    );
+  }
 
   return (
-    <ScrollView>
-      {/* Filter by team */}
-      <Pressable style={{ display: 'flex', flexDirection: 'row', gap: 8, justifyContent: 'space-around', marginTop: 10 }}>
-        {filters.map(filter => (
-          <Pressable
-            key={filter.id}
-            onPress={() => fetchFilterItems(filter?.name)}
-            style={{ paddingVertical: 8, paddingHorizontal: 10, backgroundColor: filter.name == selectedFilter ? 'gray' : 'black', borderRadius: 8 }}>
-            <Text style={{ color: 'white' }}>{filter?.name}</Text>
-          </Pressable>
-        ))}
-      </Pressable>
-      <View style={{ flex: 1, display: 'flex', flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', padding: 10 }}>
-        {items.map((item) => (
-          <Pressable onPress={() => navigation.navigate('Detail', { itemId: item.id })} key={item.id} style={{ height: 450, width: '49%', position: 'relative' }}>
-            <Image style={{ width: '100%', height: 350 }} source={{ uri: item.image }}></Image>
-            {/* Thêm các trường hiển thị dưới dòng này */}
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
+      <ScrollView contentContainerStyle={styles.container}>
+        {/* 🔹 Header với search */}
+        <View style={styles.header}>
+          <Text style={styles.appTitle}>⚡ ReEV Marketplace</Text>
+          <Text style={styles.slogan}>Trao đổi & đấu giá pin xe điện cũ</Text>
 
-            
-            {/* ----------------------------------- */}
-            {/* Love icons */}
-            {favorites.some((fav) => fav.id === item.id) ? (
-              <Pressable onPress={() => handleToggleFavorites(item)} style={{ top: 10, right: 10, position: 'absolute', padding: 8, backgroundColor: 'white', borderRadius: '50%' }}>
-                <AntDesign name="heart" size={24} color="red" />
-              </Pressable>
-            ) : (
-              <Pressable onPress={() => handleToggleFavorites(item)} style={{ top: 10, right: 10, position: 'absolute', padding: 8, backgroundColor: 'white', borderRadius: '50%' }}>
-                <AntDesign name="hearto" size={24} color="red" />
-              </Pressable>
-            )
-            }
-          </Pressable>
-        ))}
-      </View>
-    </ScrollView>
-  )
-}
+          <View style={styles.searchBox}>
+            <Ionicons name="search-outline" size={20} color="#666" />
+            <TextInput
+              placeholder="Tìm kiếm sản phẩm..."
+              placeholderTextColor="#999"
+              style={styles.searchInput}
+              value={search}
+              onChangeText={setSearch}
+            />
+          </View>
+        </View>
 
-export default HomeScreen
+        {/* 🔹 Danh sách sản phẩm */}
+        <View style={styles.grid}>
+          {filteredItems.map((item) => (
+            <Pressable
+              key={item.id}
+              onPress={() =>
+                navigation.navigate('Detail', {
+                  productId: item.id,
+                })
+              }
+              style={styles.card}
+            >
+              <View style={styles.imageContainer}>
+                <Image
+                  style={styles.image}
+                  source={{
+                    uri:
+                      item.imageUrls?.[0] ||
+                      item.images?.[0] ||
+                      'https://via.placeholder.com/200',
+                  }}
+                />
+              </View>
+
+              <View style={styles.info}>
+                <Text style={styles.title} numberOfLines={2}>
+                  {item.title || 'No title'}
+                </Text>
+                <Text style={styles.price}>
+                  {item.price_buy_now
+                    ? `${parseFloat(item.price_buy_now).toLocaleString()} ₫`
+                    : '—'}
+                </Text>
+              </View>
+            </Pressable>
+          ))}
+
+          {filteredItems.length === 0 && (
+            <Text style={styles.emptyText}>Không có sản phẩm nào phù hợp.</Text>
+          )}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+};
+
+export default HomeScreen;
+
+const styles = StyleSheet.create({
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  container: {
+    padding: 16,
+    backgroundColor: '#F8F9FB',
+  },
+  header: {
+    marginBottom: 20,
+    backgroundColor: '#E0F2FF',
+    borderRadius: 16,
+    padding: 16,
+  },
+  appTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#1A237E',
+  },
+  slogan: {
+    fontSize: 14,
+    color: '#555',
+    marginTop: 4,
+    marginBottom: 10,
+  },
+  searchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    height: 44,
+    borderWidth: 1,
+    borderColor: '#DDD',
+  },
+  searchInput: {
+    flex: 1,
+    marginLeft: 6,
+    color: '#333',
+  },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  card: {
+    width: '48%',
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 5,
+    elevation: 2,
+  },
+  imageContainer: {
+    width: '100%',
+    height: 140,
+    backgroundColor: '#EEE',
+    borderTopLeftRadius: 10,
+    borderTopRightRadius: 10,
+  },
+  image: {
+    width: '100%',
+    height: '100%',
+    borderTopLeftRadius: 10,
+    borderTopRightRadius: 10,
+  },
+  info: {
+    padding: 10,
+  },
+  title: {
+    fontWeight: '600',
+    fontSize: 14,
+    color: '#333',
+    marginBottom: 4,
+  },
+  price: {
+    color: '#E53935',
+    fontWeight: 'bold',
+    fontSize: 15,
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: '#888',
+    marginTop: 20,
+  },
+});

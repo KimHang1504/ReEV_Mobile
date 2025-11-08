@@ -6,11 +6,9 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native'
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 const FavoriteScreen = () => {
   const navigation = useNavigation()
-  // Define states
   const [favorites, setFavorites] = useState([])
   const [selected, setSelected] = useState([])
   const [isMultiSelected, setIsMultiSelected] = useState(false)
-  // Define functions
   const fetchFavorites = async () => {
     try {
       const storage = await AsyncStorage.getItem('favorites')
@@ -108,14 +106,12 @@ const FavoriteScreen = () => {
     setIsMultiSelected(false)
     setSelected([])
   }
-  // Define useEffect
   useFocusEffect(
     useCallback(() => {
       fetchFavorites()
       handleReset()
     }, [])
   )
-  //===========================
   return (
     <>
       {favorites.length === 0 ? (
@@ -148,12 +144,9 @@ const FavoriteScreen = () => {
           <View style={{ flex: 1, display: 'flex', flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', padding: 10 }}>
             {favorites.map((item) => (
               <Pressable onPress={() => navigation.navigate('Detail', { itemId: item.id })} key={item.id} style={{ height: 450, width: '49%', position: 'relative' }}>
-                <Image style={{ width: '100%', height: 350 }} source={{ uri: item.image }}></Image>
-                {/* Thêm các trường hiển thị dưới dòng này */}
-
-
-                {/* ----------------------------- */}
-                {/* Love selection*/}
+                <Image style={{ width: '100%', height: 350 }} source={{ uri: item.uri }}></Image>
+                <Text>{item.handbagName}</Text>
+                <Text>{item?.percentOff * 100}% sale off</Text>
                 {favorites.some((fav) => fav.id === item.id) ? (
                   <Pressable onPress={() => handleToggleFavorites(item)} style={{ top: 10, right: 10, position: 'absolute', padding: 8, backgroundColor: 'white', borderRadius: '50%' }}>
                     <AntDesign name="heart" size={24} color="red" />
@@ -172,7 +165,7 @@ const FavoriteScreen = () => {
                         <MaterialCommunityIcons name="checkbox-marked-circle" size={30} color="blue" />
                       )
                       : (
-                        <MaterialCommunityIcons name="checkbox-blank-circle-outline" size={30} color="white" />
+                        <MaterialCommunityIcons name="checkbox-blank-circle-outline" size={30} color="blue" />
                       )
                     // 
                   )}
