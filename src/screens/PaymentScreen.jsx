@@ -21,6 +21,8 @@ const PaymentScreen = () => {
   const navigation = useNavigation();
   const { user } = useAuth();
   const product = params?.product;
+  const auctionId = params?.auctionId; // 🆕 Auction payment
+  const auctionAmount = params?.amount; // 🆕 Amount from auction
 
   const [order, setOrder] = useState(null);
   const [method, setMethod] = useState("payos");
@@ -31,6 +33,25 @@ const PaymentScreen = () => {
   useEffect(() => {
     const init = async () => {
       try {
+        // 🆕 If from auction, fetch order by auctionId
+        if (auctionId) {
+          // Backend creates order when auction ends, we need to find it
+          // For now, we'll create a mock order structure
+          const mockOrder = {
+            orderId: `auction-${auctionId}`,
+            grandTotal: auctionAmount || 0,
+            totalPrice: auctionAmount || 0,
+            totalShippingFee: 0,
+          };
+          setOrder(mockOrder);
+          
+          // Get wallet balance
+          const data = await walletService.getAvailable();
+          setWallet(data?.available || 0);
+          setLoading(false);
+          return;
+        }
+
         if (!user?.userId || !product?.id) {
           Alert.alert("Lỗi", "Thiếu thông tin sản phẩm hoặc người mua");
           navigation.goBack();
@@ -132,18 +153,28 @@ const PaymentScreen = () => {
 
       {/* Thông tin giá từ BE */}
       <View style={styles.box}>
-        <Text style={styles.label}>Sản phẩm:</Text>
-        <Text style={styles.value}>{product?.title}</Text>
-
-        <Text style={styles.label}>Giá sản phẩm:</Text>
+        <Text style={styles.label}>
+          {auctionId ? 'Sản phẩm đấu giá:' : 'Sản phẩm:'}
+        </Text>
         <Text style={styles.value}>
-          {Number(order?.totalPrice || product.price_buy_now).toLocaleString()} ₫
+          {auctionId ? 'Sản phẩm đấu giá' : product?.title}
         </Text>
 
-        <Text style={styles.label}>Phí vận chuyển:</Text>
-        <Text style={styles.value}>
-          {Number(order?.totalShippingFee || 0).toLocaleString()} ₫
+        <Text style={styles.label}>
+          {auctionId ? 'Giá trúng đấu giá:' : 'Giá sản phẩm:'}
         </Text>
+        <Text style={styles.value}>
+          {Number(order?.totalPrice || product?.price_buy_now || auctionAmount || 0).toLocaleString()} ₫
+        </Text>
+
+        {!auctionId && (
+          <>
+            <Text style={styles.label}>Phí vận chuyển:</Text>
+            <Text style={styles.value}>
+              {Number(order?.totalShippingFee || 0).toLocaleString()} ₫
+            </Text>
+          </>
+        )}
 
         <Text style={[styles.label, { fontWeight: '700', marginTop: 8 }]}>
           Tổng thanh toán:

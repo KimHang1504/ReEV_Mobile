@@ -6,6 +6,7 @@ import FavoriteScreen from '../screens/FavoriteScreen';
 import CustomerScreen from '../screens/Customer';
 import ProfileScreen from '../screens/ProfileScreen';
 import OrderHistoryScreen from '../screens/OrderHistoryScreen';
+import AuctionListScreen from '../screens/AuctionListScreen';
 import { SafeAreaView } from 'react-native-safe-area-context';  
 
 const Tab = createBottomTabNavigator();
@@ -39,6 +40,9 @@ function MainTabs() {
             case 'Home':
               iconName = focused ? 'home' : 'home-outline';
               break;
+            case 'Auction':
+              iconName = focused ? 'hammer' : 'hammer-outline';
+              break;
             case 'Favorite':
               iconName = focused ? 'heart' : 'heart-outline';
               break;
@@ -47,6 +51,9 @@ function MainTabs() {
               break;
             case 'Profile':
               iconName = focused ? 'person' : 'person-outline';
+              break;
+            case 'Orders':
+              iconName = focused ? 'receipt' : 'receipt-outline';
               break;
             default:
               iconName = 'ellipse-outline';
@@ -60,6 +67,11 @@ function MainTabs() {
         name="Home"
         component={HomeScreen}
         options={{ title: 'Trang chủ' }}
+      />
+      <Tab.Screen
+        name="Auction"
+        component={AuctionListScreen}
+        options={{ title: 'Đấu giá' }}
       />
       <Tab.Screen
         name="Favorite"

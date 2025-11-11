@@ -6,6 +6,8 @@ import LoginScreen from '../screens/LoginScreen';
 import VerifyOtpScreen from '../screens/VerifyOtpScreen';
 import OrderDetailScreen from '../screens/OrderDetailScreen';
 import PaymentSuccessScreen from '../screens/PaymentSuccessScreen';
+import AuctionListScreen from '../screens/AuctionListScreen';
+import AuctionRoomScreen from '../screens/AuctionRoomScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -54,6 +56,18 @@ function RootStack() {
        name="OrderDetail"
        component={OrderDetailScreen}
        options={{ title: 'Chi tiết đơn hàng' }} />
+
+      {/* 🏛️ Auction screens */}
+      <Stack.Screen
+        name="AuctionList"
+        component={AuctionListScreen}
+        options={{ title: 'Đấu giá' }}
+      />
+      <Stack.Screen
+        name="AuctionRoom"
+        component={AuctionRoomScreen}
+        options={{ title: 'Phòng đấu giá' }}
+      />
 
     </Stack.Navigator>
   );
