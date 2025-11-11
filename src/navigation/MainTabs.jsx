@@ -5,6 +5,7 @@ import HomeScreen from '../screens/HomeScreen';
 import FavoriteScreen from '../screens/FavoriteScreen';
 import CustomerScreen from '../screens/Customer';
 import ProfileScreen from '../screens/ProfileScreen';
+import OrderHistoryScreen from '../screens/OrderHistoryScreen';
 import { SafeAreaView } from 'react-native-safe-area-context';  
 
 const Tab = createBottomTabNavigator();
@@ -75,6 +76,10 @@ function MainTabs() {
         component={ProfileScreen}
         options={{ title: 'Hồ sơ' }}
       />
+      <Tab.Screen
+      name="Orders"
+      component={OrderHistoryScreen}
+      options={{ title: 'Đơn hàng' }} />
     </Tab.Navigator>
   );
 }
