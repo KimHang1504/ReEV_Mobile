@@ -26,7 +26,6 @@ const normalizeError = (error) => {
 };
 
 export const authService = {
-  // 🔹 Login (giữ nguyên)
   login: async (email, password, deviceInfo = "ReactNative") => {
     try {
       const payload = JSON.stringify({ email, password, deviceInfo });
@@ -42,7 +41,6 @@ export const authService = {
     }
   },
 
-  // 🔹 Lấy thông tin user hiện tại
   getProfile: async (token) => {
     try {
       const response = await api.get("/users/me", {
@@ -59,7 +57,6 @@ export const authService = {
     }
   },
 
-  // 🔹 Verify OTP
   verifyOtp: async (email, otp) => {
     try {
       const response = await api.post(
@@ -75,7 +72,6 @@ export const authService = {
     }
   },
 
-  // 🔹 Resend OTP
   resendOtp: async (email) => {
     try {
       const response = await api.post(

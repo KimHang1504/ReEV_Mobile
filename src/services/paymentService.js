@@ -35,20 +35,14 @@ export const paymentService = {
    * 💰 Thanh toán qua ví nội bộ
    * @param {string} orderId
    */
-  async payWithWallet(orderId) {
-    try {
-      const token = await AsyncStorage.getItem('token');
-      const res = await axios.post(
-        `${BASE_URL}/wallet/payorder`,
-        { orderId },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      return res.data?.data; // có thể là thông tin đơn hàng đã thanh toán
-    } catch (err) {
-      console.error('💥 Wallet payment error:', err.response?.data || err.message);
-      throw err;
-    }
-  },
+async payWithWallet(orderId, amount) {
+  const token = await AsyncStorage.getItem('token');
+  const res = await axios.post(
+    `${BASE_URL}/wallet/pay-order`,
+    { orderId, amount },
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  return res.data?.data;
+}
+
 };

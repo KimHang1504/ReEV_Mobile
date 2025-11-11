@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -7,150 +7,186 @@ import {
   Alert,
   StyleSheet,
   Linking,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useRoute, useNavigation } from '@react-navigation/native';
-import { useAuth } from '../context/AuthContext';
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useRoute, useNavigation } from "@react-navigation/native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useAuth } from "../context/AuthContext";
 import { orderService } from '../services/orderService';
-import { paymentService } from '../services/paymentService';
-import { walletService } from '../services/walletService';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { paymentService } from "../services/paymentService";
+import { walletService } from "../services/walletService";
 
 const PaymentScreen = () => {
-  const route = useRoute();
+  const { params } = useRoute();
   const navigation = useNavigation();
   const { user } = useAuth();
-  const { product } = route.params || {};
+  const product = params?.product;
 
-  const [method, setMethod] = useState('payos'); // payos | wallet
-  const [loading, setLoading] = useState(false);
-  const [walletBalance, setWalletBalance] = useState(0);
+  const [order, setOrder] = useState(null);
+  const [method, setMethod] = useState("payos");
+  const [wallet, setWallet] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [paying, setPaying] = useState(false);
 
-  // 🧩 Lấy số dư ví
   useEffect(() => {
-    const loadWallet = async () => {
+    const init = async () => {
       try {
-        const data = await walletService.getAvailable();
-        setWalletBalance(Number(data?.available || 0));
-      } catch (e) {
-        console.warn('⚠️ Không lấy được số dư ví:', e.message);
-      }
-    };
-    loadWallet();
-  }, []);
-
-  const handlePayment = async () => {
-    try {
-      if (!user?.userId) {
-        return Alert.alert('Thông báo', 'Vui lòng đăng nhập để thanh toán.');
-      }
-
-      if (!product?.id) {
-        return Alert.alert('Lỗi', 'Không có thông tin sản phẩm.');
-      }
-
-      setLoading(true);
-
-      // 1️⃣ Tạo đơn hàng trước
-      const order = await orderService.createOrder(user.userId, {
-        productId: product.id,
-        quantity: 1,
-      });
-
-      const orderId = order?.orderId || order?.data?.orderId;
-      if (!orderId) throw new Error('Không tìm thấy orderId.');
-
-      // 2️⃣ Xử lý theo phương thức thanh toán
-      if (method === 'wallet') {
-        if (walletBalance < parseFloat(product.price_buy_now)) {
-          Alert.alert('⚠️ Số dư không đủ', 'Vui lòng nạp thêm tiền hoặc chọn phương thức khác.');
-          setLoading(false);
+        if (!user?.userId || !product?.id) {
+          Alert.alert("Lỗi", "Thiếu thông tin sản phẩm hoặc người mua");
+          navigation.goBack();
           return;
         }
 
-        const result = await walletService.payOrder(orderId);
-        if (result?.success) {
-          Alert.alert('✅ Thanh toán thành công!', 'Đã trừ tiền trong ví của bạn.', [
-            { text: 'OK', onPress: () => navigation.replace('MainTabs') },
-          ]);
+        // 🔹 1. Tạo đơn hàng trước
+        const createdOrder = await orderService.createOrder(user.userId, {
+          receiverName: user.fullName, // 👈 người nhận là buyer hiện tại
+          receiverPhone: user.phone,
+          receiverAddress: user.addresses?.[0]?.line1 || 'Không rõ địa chỉ',
+          receiverWardCode: user.addresses?.[0]?.wardCode || '',
+          receiverDistrictId: String(user.addresses?.[0]?.districtId || ''),
+
+          orderShops: [
+            {
+              sellerId: product.seller?.userId, // 👈 người bán
+              orderDetails: [
+                {
+                  productId: product.id,
+                  quantity: 1,
+                  price: Number(product.price_buy_now), // "1000.00"
+                  subtotal: Number(product.price_buy_now), // ✅ BE tự cộng ship
+                },
+              ],
+            },
+          ],
+        });
+
+
+        setOrder(createdOrder);
+
+        // 🔹 2. Lấy ví
+        const data = await walletService.getAvailable();
+        setWallet(data?.available || 0);
+
+      } catch (err) {
+        console.error("❌ Error init payment:", err);
+        Alert.alert("Lỗi", "Không thể tạo đơn hàng.");
+        navigation.goBack();
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    init();
+  }, []);
+
+  const handlePay = async () => {
+    try {
+      if (!order?.orderId) {
+        Alert.alert("Lỗi", "Không có orderId.");
+        return;
+      }
+
+      setPaying(true);
+
+      if (method === "wallet") {
+        if (wallet < Number(order.grandTotal)) {
+          Alert.alert("⚠️ Số dư ví không đủ", "Vui lòng nạp thêm tiền.");
+          return;
+        }
+        const res = await paymentService.payWithWallet(order.orderId, Number(order.grandTotal));
+        if (res?.success) {
+          navigation.replace("PaymentSuccess", {
+            order: { ...order, product, method },
+          });
         } else {
-          Alert.alert('❌ Thanh toán thất bại', result?.message || 'Vui lòng thử lại.');
+          Alert.alert("❌ Thất bại", res?.message || "Vui lòng thử lại");
         }
       } else {
-        const payment = await paymentService.createPayment(orderId);
+        const payment = await paymentService.payWithPayOS(order.orderId);
         if (payment?.checkoutUrl) {
           Linking.openURL(payment.checkoutUrl);
         } else {
-          Alert.alert('Lỗi', 'Không nhận được link thanh toán.');
+          Alert.alert("Lỗi", "Không nhận được link thanh toán.");
         }
       }
-    } catch (err) {
-      console.error('💥 Payment error:', err.response?.data || err.message);
-      Alert.alert('Thanh toán thất bại', err.response?.data?.message || 'Vui lòng thử lại sau.');
+    } catch (e) {
+      console.error("💥 Payment error:", e.response?.data || e.message);
+      Alert.alert("Thanh toán thất bại", "Vui lòng thử lại sau.");
     } finally {
-      setLoading(false);
+      setPaying(false);
     }
   };
 
-  if (!product) {
+  if (loading) {
     return (
       <View style={styles.centered}>
-        <Text>Không có thông tin sản phẩm.</Text>
+        <ActivityIndicator size="large" color="#007AFF" />
+        <Text>Đang khởi tạo đơn hàng...</Text>
       </View>
     );
   }
 
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={styles.title}>Thanh toán sản phẩm</Text>
+      <Text style={styles.title}>Thanh toán đơn hàng</Text>
 
-      {/* 🛍️ Thông tin sản phẩm */}
+      {/* Thông tin giá từ BE */}
       <View style={styles.box}>
-        <Text style={styles.label}>Tên sản phẩm:</Text>
-        <Text style={styles.value}>{product.title}</Text>
+        <Text style={styles.label}>Sản phẩm:</Text>
+        <Text style={styles.value}>{product?.title}</Text>
 
-        <Text style={styles.label}>Giá mua ngay:</Text>
-        <Text style={[styles.value, { color: '#E53935' }]}>
-          {Number(product.price_buy_now).toLocaleString()} ₫
+        <Text style={styles.label}>Giá sản phẩm:</Text>
+        <Text style={styles.value}>
+          {Number(order?.totalPrice || product.price_buy_now).toLocaleString()} ₫
         </Text>
+
+        <Text style={styles.label}>Phí vận chuyển:</Text>
+        <Text style={styles.value}>
+          {Number(order?.totalShippingFee || 0).toLocaleString()} ₫
+        </Text>
+
+        <Text style={[styles.label, { fontWeight: '700', marginTop: 8 }]}>
+          Tổng thanh toán:
+        </Text>
+        <Text style={[styles.value, { color: '#E53935', fontSize: 18 }]}>
+          {Number(order?.grandTotal || 0).toLocaleString()} ₫
+        </Text>
+
       </View>
 
-      {/* 💳 Chọn phương thức */}
-      <Text style={styles.section}>Chọn phương thức thanh toán</Text>
+      {/* Phương thức thanh toán */}
+      <Text style={styles.section}>Phương thức thanh toán</Text>
 
-      <View style={styles.methodBox}>
-        <Pressable
-          style={[styles.method, method === 'payos' && styles.selected]}
-          onPress={() => setMethod('payos')}
-        >
-          <Ionicons name="card-outline" size={20} color="#007AFF" />
-          <Text style={styles.methodText}>Thanh toán qua PayOS</Text>
-        </Pressable>
-
-        <Pressable
-          style={[styles.method, method === 'wallet' && styles.selected]}
-          onPress={() => setMethod('wallet')}
-        >
-          <Ionicons name="wallet-outline" size={20} color="#007AFF" />
-          <Text style={styles.methodText}>
-            Thanh toán bằng ví ({walletBalance.toLocaleString()} ₫)
-          </Text>
-        </Pressable>
-      </View>
-
-      {/* ⚡ Nút thanh toán */}
       <Pressable
-        style={[styles.payButton, loading && { opacity: 0.6 }]}
-        disabled={loading}
-        onPress={handlePayment}
+        style={[styles.method, method === "payos" && styles.selected]}
+        onPress={() => setMethod("payos")}
       >
-        {loading ? (
+        <Ionicons name="card-outline" size={20} color="#007AFF" />
+        <Text style={styles.methodText}>Thanh toán qua PayOS</Text>
+      </Pressable>
+
+      <Pressable
+        style={[styles.method, method === "wallet" && styles.selected]}
+        onPress={() => setMethod("wallet")}
+      >
+        <Ionicons name="wallet-outline" size={20} color="#007AFF" />
+        <Text style={styles.methodText}>
+          Thanh toán bằng ví ({wallet.toLocaleString()} ₫)
+        </Text>
+      </Pressable>
+
+      <Pressable
+        style={[styles.payButton, paying && { opacity: 0.6 }]}
+        disabled={paying}
+        onPress={handlePay}
+      >
+        {paying ? (
           <ActivityIndicator color="#fff" />
         ) : (
           <>
             <Ionicons name="checkmark-done-outline" size={20} color="#fff" />
             <Text style={styles.payText}>
-              {method === 'wallet' ? 'Thanh toán bằng ví' : 'Thanh toán PayOS'}
+              {method === "wallet" ? "Thanh toán bằng ví" : "Thanh toán PayOS"}
             </Text>
           </>
         )}
@@ -162,43 +198,43 @@ const PaymentScreen = () => {
 export default PaymentScreen;
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8F9FB', padding: 16 },
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  title: { fontSize: 22, fontWeight: '700', textAlign: 'center', marginBottom: 24 },
+  container: { flex: 1, backgroundColor: "#F8F9FB", padding: 16 },
+  centered: { flex: 1, justifyContent: "center", alignItems: "center" },
+  title: { fontSize: 22, fontWeight: "700", textAlign: "center", marginBottom: 24 },
   box: {
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     padding: 16,
     borderRadius: 10,
-    shadowColor: '#000',
+    marginBottom: 16,
+    shadowColor: "#000",
     shadowOpacity: 0.05,
     shadowOffset: { width: 0, height: 1 },
     shadowRadius: 4,
-    elevation: 2,
+    elevation: 1,
   },
-  label: { color: '#555', marginTop: 6 },
-  value: { fontWeight: '600', color: '#222' },
-  section: { fontSize: 16, fontWeight: '700', marginVertical: 16 },
-  methodBox: {},
+  label: { color: "#555", marginTop: 6 },
+  value: { fontWeight: "600", color: "#222" },
+  section: { fontSize: 16, fontWeight: "700", marginVertical: 16 },
   method: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
     borderRadius: 10,
     padding: 14,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: "#ddd",
   },
-  selected: { borderColor: '#007AFF', backgroundColor: '#E6F0FF' },
-  methodText: { marginLeft: 10, fontSize: 15, color: '#333' },
+  selected: { borderColor: "#007AFF", backgroundColor: "#E6F0FF" },
+  methodText: { marginLeft: 10, fontSize: 15, color: "#333" },
   payButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#007AFF',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#007AFF",
     borderRadius: 12,
     paddingVertical: 14,
-    marginTop: 30,
+    marginTop: 20,
   },
-  payText: { color: '#fff', fontSize: 16, fontWeight: '700', marginLeft: 8 },
+  payText: { color: "#fff", fontSize: 16, fontWeight: "700", marginLeft: 8 },
 });

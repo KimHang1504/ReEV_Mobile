@@ -25,13 +25,7 @@ const HomeScreen = () => {
   const fetchAllProducts = async () => {
     try {
       setLoading(true);
-
-      const list = await productService.getAllListings({
-        page: 1,
-        limit: 30,
-      });
-
-      // ✅ Chỉ lấy sản phẩm đang bán
+      const list = await productService.getAllListings({ page: 1, limit: 30 });
       const activeItems = (list || []).filter((p) => p.status === 'active');
       setItems(activeItems);
     } catch (err) {
@@ -60,30 +54,37 @@ const HomeScreen = () => {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#007AFF" />
+        <ActivityIndicator size="large" color="#4C6EF5" />
       </View>
     );
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
+    <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container}>
-        {/* 🔹 Header với search */}
+        {/* 🔹 Header */}
         <View style={styles.header}>
-          <Text style={styles.appTitle}>⚡ ReEV Marketplace</Text>
-          <Text style={styles.slogan}>Trao đổi & đấu giá pin xe điện cũ</Text>
-
-          <View style={styles.searchBox}>
-            <Ionicons name="search-outline" size={20} color="#666" />
-            <TextInput
-              placeholder="Tìm kiếm sản phẩm..."
-              placeholderTextColor="#999"
-              style={styles.searchInput}
-              value={search}
-              onChangeText={setSearch}
-            />
+          <View>
+            <Text style={styles.welcome}>Xin chào</Text>
+            <Text style={styles.subtitle}>Khám phá pin xe điện đã qua sử dụng</Text>
           </View>
+          <Ionicons name="person-circle-outline" size={38} color="#4C6EF5" />
         </View>
+
+        {/* 🔹 Ô tìm kiếm */}
+        <View style={styles.searchBox}>
+          <Ionicons name="search-outline" size={20} color="#666" />
+          <TextInput
+            placeholder="Tìm kiếm sản phẩm..."
+            placeholderTextColor="#999"
+            style={styles.searchInput}
+            value={search}
+            onChangeText={setSearch}
+          />
+        </View>
+
+        {/* 🔹 Tiêu đề */}
+        <Text style={styles.sectionTitle}>Sản phẩm nổi bật</Text>
 
         {/* 🔹 Danh sách sản phẩm */}
         <View style={styles.grid}>
@@ -97,17 +98,15 @@ const HomeScreen = () => {
               }
               style={styles.card}
             >
-              <View style={styles.imageContainer}>
-                <Image
-                  style={styles.image}
-                  source={{
-                    uri:
-                      item.imageUrls?.[0] ||
-                      item.images?.[0] ||
-                      'https://via.placeholder.com/200',
-                  }}
-                />
-              </View>
+              <Image
+                style={styles.image}
+                source={{
+                  uri:
+                    item.imageUrls?.[0] ||
+                    item.images?.[0] ||
+                    'https://via.placeholder.com/200',
+                }}
+              />
 
               <View style={styles.info}>
                 <Text style={styles.title} numberOfLines={2}>
@@ -134,46 +133,63 @@ const HomeScreen = () => {
 export default HomeScreen;
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#E0F2FF',
+  },
+  container: {
+    padding: 16,
+    paddingBottom: 80,
+  },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  container: {
-    padding: 16,
-    backgroundColor: '#F8F9FB',
+    backgroundColor: '#E0F2FF',
   },
   header: {
-    marginBottom: 20,
-    backgroundColor: '#E0F2FF',
-    borderRadius: 16,
-    padding: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingHorizontal: 4,
   },
-  appTitle: {
-    fontSize: 22,
+  welcome: {
+    fontSize: 20,
     fontWeight: '700',
     color: '#1A237E',
   },
-  slogan: {
+  subtitle: {
     fontSize: 14,
     color: '#555',
-    marginTop: 4,
-    marginBottom: 10,
+    marginTop: 2,
   },
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fff',
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    height: 44,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    height: 46,
     borderWidth: 1,
-    borderColor: '#DDD',
+    borderColor: '#CCE0FF',
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+    marginBottom: 20,
   },
   searchInput: {
     flex: 1,
-    marginLeft: 6,
+    marginLeft: 8,
     color: '#333',
+    fontSize: 15,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1A237E',
+    marginBottom: 12,
   },
   grid: {
     flexDirection: 'row',
@@ -183,26 +199,18 @@ const styles = StyleSheet.create({
   card: {
     width: '48%',
     backgroundColor: '#fff',
-    borderRadius: 10,
+    borderRadius: 14,
     marginBottom: 16,
+    overflow: 'hidden',
     shadowColor: '#000',
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.08,
     shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 5,
+    shadowRadius: 4,
     elevation: 2,
-  },
-  imageContainer: {
-    width: '100%',
-    height: 140,
-    backgroundColor: '#EEE',
-    borderTopLeftRadius: 10,
-    borderTopRightRadius: 10,
   },
   image: {
     width: '100%',
-    height: '100%',
-    borderTopLeftRadius: 10,
-    borderTopRightRadius: 10,
+    height: 130,
   },
   info: {
     padding: 10,
@@ -214,13 +222,14 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   price: {
-    color: '#E53935',
-    fontWeight: 'bold',
+    color: '#4C6EF5',
+    fontWeight: '700',
     fontSize: 15,
   },
   emptyText: {
     textAlign: 'center',
-    color: '#888',
+    color: '#666',
     marginTop: 20,
+    fontStyle: 'italic',
   },
 });

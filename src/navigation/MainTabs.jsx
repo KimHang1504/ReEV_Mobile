@@ -5,11 +5,13 @@ import HomeScreen from '../screens/HomeScreen';
 import FavoriteScreen from '../screens/FavoriteScreen';
 import CustomerScreen from '../screens/Customer';
 import ProfileScreen from '../screens/ProfileScreen';
+import { SafeAreaView } from 'react-native-safe-area-context';  
 
 const Tab = createBottomTabNavigator();
 
 function MainTabs() {
   return (
+    
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
@@ -18,7 +20,7 @@ function MainTabs() {
           backgroundColor: '#fff',
           borderTopWidth: 0.3,
           borderTopColor: '#ccc',
-          paddingBottom: 5,
+          paddingBottom: 15,
           height: 60,
         },
         tabBarLabelStyle: {

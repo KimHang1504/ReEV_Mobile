@@ -4,6 +4,8 @@ import DetailScreen from '../screens/DetailScreen';
 import PaymentScreen from '../screens/PaymentScreen'; // 💳 Thêm dòng này
 import LoginScreen from '../screens/LoginScreen';
 import VerifyOtpScreen from '../screens/VerifyOtpScreen';
+import OrderDetailScreen from '../screens/OrderDetailScreen';
+import PaymentSuccessScreen from '../screens/PaymentSuccessScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -44,6 +46,15 @@ function RootStack() {
         component={PaymentScreen}
         options={{ title: 'Thanh toán' }}
       />
+      <Stack.Screen
+       name="PaymentSuccess"
+        component={PaymentSuccessScreen}
+        options={{ headerShown: false }} />
+      <Stack.Screen
+       name="OrderDetail"
+       component={OrderDetailScreen}
+       options={{ title: 'Chi tiết đơn hàng' }} />
+
     </Stack.Navigator>
   );
 }
