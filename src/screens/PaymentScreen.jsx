@@ -110,17 +110,26 @@ const PaymentScreen = () => {
       setPaying(true);
 
       if (method === "wallet") {
-        if (wallet < Number(order.grandTotal)) {
-          Alert.alert("⚠️ Số dư ví không đủ", "Vui lòng nạp thêm tiền.");
-          return;
-        }
-        const res = await paymentService.payWithWallet(order.orderId, Number(order.grandTotal));
-        if (res?.success) {
-          navigation.replace("PaymentSuccess", {
-            order: { ...order, product, method },
-          });
+        // 🌐 Redirect to web for wallet payment
+        const webPaymentUrl = `${process.env.EXPO_PUBLIC_WEB_URL || 'http://localhost:5173'}/payment?orderId=${order.orderId}&mobile=true`;
+        const canOpen = await Linking.canOpenURL(webPaymentUrl);
+        
+        if (canOpen) {
+          await Linking.openURL(webPaymentUrl);
+          // Navigate to a waiting screen or just go back
+          // The web will handle the payment and redirect back to the app
+          Alert.alert(
+            "Thanh toán",
+            "Vui lòng hoàn tất thanh toán trên trình duyệt. Sau khi thanh toán thành công, bạn sẽ được chuyển về ứng dụng.",
+            [
+              {
+                text: "OK",
+                onPress: () => navigation.goBack()
+              }
+            ]
+          );
         } else {
-          Alert.alert("❌ Thất bại", res?.message || "Vui lòng thử lại");
+          Alert.alert("Lỗi", "Không thể mở trình duyệt");
         }
       } else {
         const payment = await paymentService.payWithPayOS(order.orderId);
