@@ -168,8 +168,13 @@ export default function OrderHistoryScreen() {
           keyExtractor={(item) => item.orderId}
           renderItem={({ item }) => {
             const statusColor = getStatusColor(item.status);
-            const product = item.orderShops?.[0]?.orderDetails?.[0]?.product;
-            const imageUrl = product?.imageUrls?.[0] || 'https://via.placeholder.com/200';
+            const orderShops = item.orderShops || [];
+            const firstShop = orderShops[0] || {};
+            const orderDetails = firstShop.orderDetails || [];
+            const totalItems = orderDetails.reduce((sum, od) => sum + (od.quantity || 1), 0);
+            const firstProduct = orderDetails[0]?.product;
+            const imageUrl = firstProduct?.imageUrls?.[0] || 'https://via.placeholder.com/200';
+            const hasMultipleItems = orderDetails.length > 1;
 
             return (
               <Pressable
@@ -180,44 +185,73 @@ export default function OrderHistoryScreen() {
                   })
                 }
               >
+                {/* Card Header với Status */}
                 <View style={styles.cardHeader}>
-                  <View style={styles.cardHeaderLeft}>
-                    <Ionicons name="receipt" size={24} color={colors.primary} />
-                    <View>
+                  <View style={styles.orderInfo}>
+                    <View style={styles.orderIdRow}>
+                      <Ionicons name="receipt" size={20} color={colors.primary} />
                       <Text style={styles.orderId}>
-                        Mã đơn: {item.orderId?.slice(0, 8) || 'N/A'}
+                        Đơn hàng #{item.orderId?.slice(-8) || 'N/A'}
                       </Text>
-                      <View style={[styles.statusBadge, { backgroundColor: statusColor + '20' }]}>
-                        <Text style={[styles.statusText, { color: statusColor }]}>
-                          {getStatusLabel(item.status)}
-                        </Text>
-                      </View>
+                    </View>
+                    <View style={[styles.statusBadge, { backgroundColor: statusColor + '15', borderColor: statusColor }]}>
+                      <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
+                      <Text style={[styles.statusText, { color: statusColor }]}>
+                        {getStatusLabel(item.status)}
+                      </Text>
                     </View>
                   </View>
-                  <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+                  <View style={styles.chevronContainer}>
+                    <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+                  </View>
                 </View>
 
-                {product && (
-                  <View style={styles.productRow}>
+                {/* Product Display */}
+                {firstProduct && (
+                  <View style={styles.productSection}>
                     <Image
                       source={{ uri: imageUrl }}
                       style={styles.productImage}
                     />
                     <View style={styles.productInfo}>
                       <Text style={styles.productTitle} numberOfLines={2}>
-                        {product.title || 'Sản phẩm'}
+                        {firstProduct.title || 'Sản phẩm'}
                       </Text>
-                      <Text style={styles.productPrice}>
-                        {parseFloat(item.grandTotal || 0).toLocaleString('vi-VN')} ₫
-                      </Text>
+                      {hasMultipleItems && (
+                        <Text style={styles.itemCount}>
+                          +{orderDetails.length - 1} sản phẩm khác
+                        </Text>
+                      )}
+                      <View style={styles.priceRow}>
+                        <Text style={styles.priceLabel}>Tổng tiền:</Text>
+                        <Text style={styles.productPrice}>
+                          {parseFloat(item.grandTotal || 0).toLocaleString('vi-VN')} ₫
+                        </Text>
+                      </View>
                     </View>
                   </View>
                 )}
 
+                {/* Footer với Date và Action */}
                 <View style={styles.cardFooter}>
-                  <Text style={styles.date}>
-                    {new Date(item.createdAt).toLocaleString('vi-VN')}
-                  </Text>
+                  <View style={styles.footerLeft}>
+                    <Ionicons name="calendar-outline" size={14} color={colors.textSecondary} />
+                    <Text style={styles.date}>
+                      {new Date(item.createdAt).toLocaleDateString('vi-VN', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                      })}
+                    </Text>
+                  </View>
+                  {item.status === 'pending' && (
+                    <Pressable
+                      style={styles.payNowBtn}
+                      onPress={() => navigation.navigate('PaymentScreen', { orderId: item.orderId })}
+                    >
+                      <Text style={styles.payNowText}>Thanh toán</Text>
+                    </Pressable>
+                  )}
                 </View>
               </Pressable>
             );
@@ -303,43 +337,71 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     padding: spacing.md,
     marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
     ...shadows.md,
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: spacing.md,
+    paddingBottom: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.divider,
   },
-  cardHeaderLeft: {
+  orderInfo: {
+    flex: 1,
+  },
+  orderIdRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    flex: 1,
+    gap: spacing.xs,
+    marginBottom: spacing.sm,
   },
   orderId: {
     ...typography.bodyBold,
     color: colors.text,
-    marginBottom: spacing.xs,
   },
   statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
     alignSelf: 'flex-start',
     paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
+    paddingVertical: spacing.xs,
     borderRadius: borderRadius.sm,
+    borderWidth: 1,
+    gap: spacing.xs,
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   statusText: {
     ...typography.small,
     fontWeight: '700',
+    fontSize: 11,
   },
-  productRow: {
+  chevronContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  productSection: {
     flexDirection: 'row',
     gap: spacing.md,
     marginBottom: spacing.md,
+    padding: spacing.sm,
+    backgroundColor: colors.background,
+    borderRadius: borderRadius.md,
   },
   productImage: {
-    width: 60,
-    height: 60,
+    width: 80,
+    height: 80,
     borderRadius: borderRadius.md,
     backgroundColor: colors.divider,
   },
@@ -348,22 +410,57 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   productTitle: {
-    ...typography.body,
+    ...typography.bodyBold,
     color: colors.text,
     marginBottom: spacing.xs,
+  },
+  itemCount: {
+    ...typography.caption,
+    color: colors.primary,
+    marginBottom: spacing.xs,
+    fontStyle: 'italic',
+  },
+  priceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: spacing.xs,
+  },
+  priceLabel: {
+    ...typography.caption,
+    color: colors.textSecondary,
   },
   productPrice: {
     ...typography.h4,
     color: colors.primary,
+    fontWeight: '700',
   },
   cardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: spacing.sm,
     borderTopWidth: 1,
     borderTopColor: colors.divider,
-    paddingTop: spacing.sm,
+  },
+  footerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
   },
   date: {
     ...typography.caption,
     color: colors.textSecondary,
+  },
+  payNowBtn: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.sm,
+  },
+  payNowText: {
+    ...typography.captionBold,
+    color: '#fff',
   },
   emptyContainer: {
     flex: 1,

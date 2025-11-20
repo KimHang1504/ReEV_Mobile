@@ -1,40 +1,49 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Ionicons } from '@expo/vector-icons'; // hoặc AntDesign, MaterialIcons tuỳ bạn
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
+import { View, StyleSheet } from 'react-native';
 import HomeScreen from '../screens/HomeScreen';
 import FavoriteScreen from '../screens/FavoriteScreen';
-import CustomerScreen from '../screens/Customer';
 import ProfileScreen from '../screens/ProfileScreen';
 import OrderHistoryScreen from '../screens/OrderHistoryScreen';
 import AuctionListScreen from '../screens/AuctionListScreen';
-import { SafeAreaView } from 'react-native-safe-area-context';  
+import { colors, spacing, borderRadius, shadows } from '../constants/theme';  
 
 const Tab = createBottomTabNavigator();
 
 function MainTabs() {
   return (
-    
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarShowLabel: true,
         tabBarStyle: {
-          backgroundColor: '#fff',
-          borderTopWidth: 0.3,
-          borderTopColor: '#ccc',
-          paddingBottom: 15,
-          height: 60,
+          backgroundColor: 'transparent',
+          borderTopWidth: 0,
+          elevation: 0,
+          shadowOpacity: 0,
+          height: 70,
+          paddingBottom: spacing.md,
+          paddingTop: spacing.sm,
+          position: 'absolute',
         },
+        tabBarBackground: () => (
+          <LinearGradient
+            colors={['rgba(255,255,255,0.95)', 'rgba(255,255,255,0.98)']}
+            style={StyleSheet.absoluteFill}
+          />
+        ),
         tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '600',
+          fontSize: 11,
+          fontWeight: '700',
+          marginTop: 4,
         },
-        tabBarActiveTintColor: '#007AFF',
-        tabBarInactiveTintColor: '#999',
-
-        // 🎨 Icon theo từng tab
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textLight,
         tabBarIcon: ({ color, size, focused }) => {
           let iconName;
+          let iconSize = focused ? 26 : 22;
 
           switch (route.name) {
             case 'Home':
@@ -46,11 +55,8 @@ function MainTabs() {
             case 'Favorite':
               iconName = focused ? 'heart' : 'heart-outline';
               break;
-            case 'Customer':
-              iconName = focused ? 'people' : 'people-outline';
-              break;
             case 'Profile':
-              iconName = focused ? 'person' : 'person-outline';
+              iconName = focused ? 'person-circle' : 'person-circle-outline';
               break;
             case 'Orders':
               iconName = focused ? 'receipt' : 'receipt-outline';
@@ -59,7 +65,17 @@ function MainTabs() {
               iconName = 'ellipse-outline';
           }
 
-          return <Ionicons name={iconName} size={size} color={color} />;
+          return (
+            <View
+              style={[
+                styles.iconContainer,
+                focused && styles.iconContainerFocused,
+              ]}
+            >
+              <Ionicons name={iconName} size={iconSize} color={color} />
+              {focused && <View style={styles.activeDot} />}
+            </View>
+          );
         },
       })}
     >
@@ -79,21 +95,38 @@ function MainTabs() {
         options={{ title: 'Yêu thích' }}
       />
       <Tab.Screen
-        name="Customer"
-        component={CustomerScreen}
-        options={{ title: 'Khách hàng' }}
+        name="Orders"
+        component={OrderHistoryScreen}
+        options={{ title: 'Đơn hàng' }}
       />
       <Tab.Screen
         name="Profile"
         component={ProfileScreen}
         options={{ title: 'Hồ sơ' }}
       />
-      <Tab.Screen
-      name="Orders"
-      component={OrderHistoryScreen}
-      options={{ title: 'Đơn hàng' }} />
     </Tab.Navigator>
   );
 }
+
+const styles = StyleSheet.create({
+  iconContainer: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: borderRadius.md,
+  },
+  iconContainerFocused: {
+    backgroundColor: colors.primary + '15',
+  },
+  activeDot: {
+    position: 'absolute',
+    bottom: -2,
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.primary,
+  },
+});
 
 export default MainTabs;

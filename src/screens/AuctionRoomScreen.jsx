@@ -10,13 +10,18 @@ import {
   Alert,
   StyleSheet,
   TextInput,
+  Dimensions,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { auctionService } from '../services/auctionService';
 import { socketService } from '../services/socketService';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AuthContext } from '../context/AuthContext';
+import { colors, spacing, borderRadius, typography, shadows } from '../constants/theme';
+
+const { width } = Dimensions.get('window');
 
 const AuctionRoomScreen = () => {
   const navigation = useNavigation();
@@ -222,7 +227,8 @@ const AuctionRoomScreen = () => {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#4C6EF5" />
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={styles.loadingText}>Đang tải phiên đấu giá...</Text>
       </View>
     );
   }
@@ -230,7 +236,8 @@ const AuctionRoomScreen = () => {
   if (!auction) {
     return (
       <View style={styles.centered}>
-        <Text>Không tìm thấy phiên đấu giá.</Text>
+        <Ionicons name="alert-circle-outline" size={60} color={colors.error} />
+        <Text style={styles.errorText}>Không tìm thấy phiên đấu giá</Text>
       </View>
     );
   }
@@ -240,14 +247,44 @@ const AuctionRoomScreen = () => {
   const imageUrl = auction.product?.imageUrls?.[0] || auction.imageUrls?.[0] || 'https://via.placeholder.com/400';
   const isEnded = auction.status === 'ended' || new Date(auction.endTime) <= new Date();
   const isWinner = auction.winnerId === user?.sub;
+  const minBid = currentPrice + (auction.minBidIncrement || auction.minIncrement || 1000);
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.container}>
-        {/* 🔹 Product Image */}
-        <Image style={styles.productImage} source={{ uri: imageUrl }} />
+      {/* Header với back button */}
+      <View style={styles.header}>
+        <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
+        </Pressable>
+        <View style={styles.headerCenter}>
+          <View style={[styles.statusIndicator, { backgroundColor: isEnded ? colors.textSecondary : colors.error }]}>
+            <View style={[styles.statusDot, { backgroundColor: isEnded ? colors.textSecondary : colors.error }]} />
+          </View>
+          <Text style={styles.headerTitle}>
+            {isEnded ? 'Đã kết thúc' : 'Đang diễn ra'}
+          </Text>
+        </View>
+        <View style={{ width: 40 }} />
+      </View>
 
-        {/* 🔹 Product Info */}
+      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+        {/* Product Image với gradient overlay */}
+        <View style={styles.imageContainer}>
+          <Image style={styles.productImage} source={{ uri: imageUrl }} />
+          <LinearGradient
+            colors={['transparent', 'rgba(0,0,0,0.3)']}
+            style={styles.imageGradient}
+          >
+            {!isEnded && (
+              <View style={styles.liveIndicator}>
+                <View style={styles.livePulse} />
+                <Text style={styles.liveText}>LIVE</Text>
+              </View>
+            )}
+          </LinearGradient>
+        </View>
+
+        {/* Product Info Card */}
         <View style={styles.infoCard}>
           <Text style={styles.productTitle}>{productTitle}</Text>
           
@@ -257,39 +294,40 @@ const AuctionRoomScreen = () => {
             </Text>
           )}
 
-          <View style={styles.divider} />
-
-          {/* Current Price */}
-          <View style={styles.priceRow}>
-            <Text style={styles.label}>Giá hiện tại:</Text>
-            <Text style={styles.currentPrice}>
-              ${parseFloat(currentPrice).toLocaleString()}
-            </Text>
+          {/* Stats Grid */}
+          <View style={styles.statsGrid}>
+            <View style={styles.statCard}>
+              <Ionicons name="cash" size={24} color={colors.primary} />
+              <Text style={styles.statLabel}>Giá hiện tại</Text>
+              <Text style={styles.statValue}>
+                {parseFloat(currentPrice).toLocaleString('vi-VN')} ₫
+              </Text>
+            </View>
+            <View style={styles.statCard}>
+              <Ionicons name="time" size={24} color={colors.error} />
+              <Text style={styles.statLabel}>Còn lại</Text>
+              <Text style={[styles.statValue, styles.timeValue]}>
+                {timeRemaining}
+              </Text>
+            </View>
+            <View style={styles.statCard}>
+              <Ionicons name="people" size={24} color={colors.secondary} />
+              <Text style={styles.statLabel}>Lượt đặt</Text>
+              <Text style={styles.statValue}>
+                {auction.bidCount || 0}
+              </Text>
+            </View>
           </View>
 
-          {/* Time Remaining */}
-          <View style={styles.timeRow}>
-            <Ionicons name="time-outline" size={20} color="#FF6B6B" />
-            <Text style={styles.timeText}>{timeRemaining}</Text>
-          </View>
-
-          {/* Bid Count */}
-          <View style={styles.bidCountRow}>
-            <Ionicons name="people-outline" size={20} color="#4C6EF5" />
-            <Text style={styles.bidCountText}>
-              {auction.bidCount || 0} lượt đặt giá
-            </Text>
-          </View>
-
-          {/* Socket Connection Status */}
-          <View style={styles.connectionRow}>
+          {/* Connection Status */}
+          <View style={styles.connectionBadge}>
             <Ionicons 
-              name={isConnected ? "radio-button-on" : "radio-button-off"} 
+              name={isConnected ? "wifi" : "wifi-outline"} 
               size={16} 
-              color={isConnected ? "#4CAF50" : "#FF6B6B"} 
+              color={isConnected ? colors.success : colors.error} 
             />
-            <Text style={[styles.connectionText, { color: isConnected ? "#4CAF50" : "#FF6B6B" }]}>
-              {isConnected ? "Đã kết nối real-time" : "Đang kết nối..."}
+            <Text style={[styles.connectionText, { color: isConnected ? colors.success : colors.error }]}>
+              {isConnected ? "Kết nối real-time" : "Đang kết nối..."}
             </Text>
           </View>
         </View>
@@ -297,64 +335,116 @@ const AuctionRoomScreen = () => {
         {/* 🔹 Bidding Section */}
         {!isEnded ? (
           <View style={styles.biddingCard}>
-            <Text style={styles.biddingTitle}>Đặt giá của bạn</Text>
-            <View style={styles.inputRow}>
-              <Text style={styles.dollarSign}>$</Text>
+            <View style={styles.biddingHeader}>
+              <Ionicons name="hammer" size={28} color={colors.secondary} />
+              <Text style={styles.biddingTitle}>Đặt giá của bạn</Text>
+            </View>
+
+            {/* Price Input */}
+            <View style={styles.inputContainer}>
+              <View style={styles.currencyBadge}>
+                <Text style={styles.currency}>₫</Text>
+              </View>
               <TextInput
                 style={styles.input}
                 keyboardType="numeric"
-                placeholder="Nhập số tiền"
+                placeholder={minBid.toLocaleString('vi-VN')}
+                placeholderTextColor={colors.textLight}
                 value={bidAmount}
                 onChangeText={setBidAmount}
               />
             </View>
-            <Text style={styles.hintText}>
-              Giá đặt tối thiểu: $
-              {(currentPrice + (auction.minBidIncrement || auction.minIncrement || 0)).toLocaleString()}
-            </Text>
+
+            <View style={styles.minBidInfo}>
+              <Ionicons name="information-circle-outline" size={16} color={colors.textSecondary} />
+              <Text style={styles.hintText}>
+                Giá đặt tối thiểu: <Text style={styles.hintBold}>{minBid.toLocaleString('vi-VN')} ₫</Text>
+              </Text>
+            </View>
+
+            {/* Place Bid Button */}
             <Pressable
-              style={[styles.bidBtn, placing && styles.bidBtnDisabled]}
+              style={styles.bidBtn}
               onPress={handlePlaceBid}
-              disabled={placing}
+              disabled={placing || !isConnected}
             >
-              {placing ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <>
-                  <Ionicons name="hammer-outline" size={20} color="#fff" />
-                  <Text style={styles.bidBtnText}>Đặt giá ngay</Text>
-                </>
-              )}
+              <LinearGradient
+                colors={[colors.gradientStart, colors.gradientEnd]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={[styles.bidBtnGradient, (placing || !isConnected) && styles.bidBtnDisabled]}
+              >
+                {placing ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <>
+                    <Ionicons name="hammer" size={22} color="#fff" />
+                    <Text style={styles.bidBtnText}>Đặt giá ngay</Text>
+                  </>
+                )}
+              </LinearGradient>
             </Pressable>
-          </View>
-        ) : (
-          <View style={styles.endedCard}>
-            <Ionicons name="checkmark-circle" size={60} color="#4CAF50" />
-            <Text style={styles.endedTitle}>Phiên đấu giá đã kết thúc</Text>
-            {isWinner ? (
-              <>
-                <Text style={styles.winnerText}>
-                  🎉 Chúc mừng! Bạn đã thắng phiên đấu giá này.
-                </Text>
-                <Pressable
-                  style={styles.paymentBtn}
-                  onPress={() =>
-                    navigation.navigate('PaymentScreen', {
-                      auctionId: auction.id,
-                      amount: currentPrice,
-                    })
-                  }
-                >
-                  <Text style={styles.paymentBtnText}>Thanh toán ngay</Text>
-                </Pressable>
-              </>
-            ) : (
-              <Text style={styles.loserText}>
-                Rất tiếc, bạn không thắng phiên đấu giá này.
+
+            {!isConnected && (
+              <Text style={styles.connectionWarning}>
+                ⚠️ Đang kết nối... Vui lòng chờ
               </Text>
             )}
           </View>
+        ) : (
+          <View style={styles.endedCard}>
+            <LinearGradient
+              colors={[colors.success + '20', colors.success + '10']}
+              style={styles.endedCardGradient}
+            >
+              <View style={styles.endedIconContainer}>
+                <Ionicons name="checkmark-circle" size={80} color={isWinner ? colors.success : colors.textSecondary} />
+              </View>
+              <Text style={styles.endedTitle}>
+                Phiên đấu giá đã kết thúc
+              </Text>
+              <Text style={styles.finalPrice}>
+                Giá cuối cùng: {parseFloat(currentPrice).toLocaleString('vi-VN')} ₫
+              </Text>
+              
+              {isWinner ? (
+                <>
+                  <View style={styles.winnerBadge}>
+                    <Ionicons name="trophy" size={24} color={colors.warning} />
+                    <Text style={styles.winnerText}>
+                      🎉 Chúc mừng! Bạn đã thắng!
+                    </Text>
+                  </View>
+                  <Pressable
+                    style={styles.paymentBtn}
+                    onPress={() =>
+                      navigation.navigate('PaymentScreen', {
+                        auctionId: auction.id,
+                        amount: currentPrice,
+                      })
+                    }
+                  >
+                    <LinearGradient
+                      colors={[colors.success, colors.success + 'DD']}
+                      style={styles.paymentBtnGradient}
+                    >
+                      <Ionicons name="card" size={20} color="#fff" />
+                      <Text style={styles.paymentBtnText}>Thanh toán ngay</Text>
+                    </LinearGradient>
+                  </Pressable>
+                </>
+              ) : (
+                <Text style={styles.loserText}>
+                  Rất tiếc, bạn không thắng phiên đấu giá này.
+                </Text>
+              )}
+            </LinearGradient>
+          </View>
         )}
+      </ScrollView>
+    </SafeAreaView>
+  );
+};
       </ScrollView>
     </SafeAreaView>
   );
@@ -365,198 +455,314 @@ export default AuctionRoomScreen;
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F5F7FA',
+    backgroundColor: colors.background,
   },
   container: {
-    paddingBottom: 40,
+    paddingBottom: spacing.xxl,
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: colors.background,
   },
-  productImage: {
-    width: '100%',
-    height: 300,
-    backgroundColor: '#E0E0E0',
+  loadingText: {
+    marginTop: spacing.md,
+    ...typography.body,
+    color: colors.textSecondary,
   },
-  infoCard: {
-    backgroundColor: '#fff',
-    padding: 16,
-    marginHorizontal: 16,
-    marginTop: -30,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 8,
-    elevation: 4,
+  errorText: {
+    marginTop: spacing.md,
+    ...typography.h4,
+    color: colors.text,
   },
-  productTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1A237E',
-    marginBottom: 8,
-  },
-  description: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 12,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#E0E0E0',
-    marginVertical: 12,
-  },
-  priceRow: {
+  header: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
+    padding: spacing.md,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
-  label: {
-    fontSize: 14,
-    color: '#666',
-  },
-  currentPrice: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#4C6EF5',
-  },
-  timeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  timeText: {
-    fontSize: 14,
-    color: '#FF6B6B',
-    marginLeft: 8,
-    fontWeight: '600',
-  },
-  bidCountRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  bidCountText: {
-    fontSize: 14,
-    color: '#4C6EF5',
-    marginLeft: 8,
-  },
-  connectionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  connectionText: {
-    fontSize: 12,
-    marginLeft: 6,
-    fontWeight: '500',
-  },
-  biddingCard: {
-    backgroundColor: '#fff',
-    padding: 16,
-    marginHorizontal: 16,
-    marginTop: 16,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  biddingTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1A237E',
-    marginBottom: 12,
-  },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#4C6EF5',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    marginBottom: 8,
-  },
-  dollarSign: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#4C6EF5',
-    marginRight: 8,
-  },
-  input: {
-    flex: 1,
-    height: 50,
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-  },
-  hintText: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 16,
-    fontStyle: 'italic',
-  },
-  bidBtn: {
-    backgroundColor: '#FF6B6B',
-    paddingVertical: 14,
-    borderRadius: 12,
-    flexDirection: 'row',
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.background,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  bidBtnDisabled: {
-    backgroundColor: '#ccc',
-  },
-  bidBtnText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-    marginLeft: 8,
-  },
-  endedCard: {
-    backgroundColor: '#fff',
-    padding: 24,
-    marginHorizontal: 16,
-    marginTop: 16,
-    borderRadius: 16,
+  headerCenter: {
+    flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 8,
-    elevation: 4,
+    gap: spacing.sm,
   },
-  endedTitle: {
-    fontSize: 18,
+  statusIndicator: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  headerTitle: {
+    ...typography.bodyBold,
+    color: colors.text,
+  },
+  imageContainer: {
+    position: 'relative',
+    width: '100%',
+    height: 350,
+  },
+  productImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+    backgroundColor: colors.divider,
+  },
+  imageGradient: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: '40%',
+    justifyContent: 'flex-end',
+    padding: spacing.md,
+  },
+  liveIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: colors.error,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.sm,
+    gap: spacing.xs,
+  },
+  livePulse: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#fff',
+  },
+  liveText: {
+    ...typography.small,
+    color: '#fff',
     fontWeight: '700',
-    color: '#1A237E',
-    marginTop: 12,
-    marginBottom: 8,
+    letterSpacing: 1,
   },
-  winnerText: {
+  infoCard: {
+    backgroundColor: colors.surface,
+    padding: spacing.md,
+    marginHorizontal: spacing.md,
+    marginTop: -spacing.xl,
+    borderRadius: borderRadius.lg,
+    ...shadows.lg,
+  },
+  productTitle: {
+    ...typography.h2,
+    color: colors.text,
+    marginBottom: spacing.sm,
+  },
+  description: {
+    ...typography.body,
+    color: colors.textSecondary,
+    marginBottom: spacing.md,
+    lineHeight: 22,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: colors.background,
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  statLabel: {
+    ...typography.small,
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
+    marginBottom: spacing.xs,
+  },
+  statValue: {
+    ...typography.h4,
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  timeValue: {
+    color: colors.error,
     fontSize: 14,
-    color: '#4CAF50',
-    textAlign: 'center',
-    marginBottom: 16,
+  },
+  connectionBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: colors.background,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.sm,
+    gap: spacing.xs,
+  },
+  connectionText: {
+    ...typography.small,
     fontWeight: '600',
   },
+  biddingCard: {
+    backgroundColor: colors.surface,
+    padding: spacing.md,
+    marginHorizontal: spacing.md,
+    marginTop: spacing.md,
+    borderRadius: borderRadius.lg,
+    ...shadows.lg,
+  },
+  biddingHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  biddingTitle: {
+    ...typography.h3,
+    color: colors.text,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    borderRadius: borderRadius.md,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  currencyBadge: {
+    width: 40,
+    height: 40,
+    borderRadius: borderRadius.sm,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.md,
+  },
+  currency: {
+    ...typography.h4,
+    color: '#fff',
+  },
+  input: {
+    flex: 1,
+    height: 60,
+    ...typography.h3,
+    color: colors.text,
+  },
+  minBidInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.md,
+  },
+  hintText: {
+    ...typography.caption,
+    color: colors.textSecondary,
+  },
+  hintBold: {
+    ...typography.captionBold,
+    color: colors.primary,
+  },
+  bidBtn: {
+    borderRadius: borderRadius.md,
+    overflow: 'hidden',
+    ...shadows.lg,
+  },
+  bidBtnGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.md,
+    gap: spacing.sm,
+  },
+  bidBtnDisabled: {
+    opacity: 0.6,
+  },
+  bidBtnText: {
+    ...typography.bodyBold,
+    color: '#fff',
+  },
+  connectionWarning: {
+    ...typography.caption,
+    color: colors.warning,
+    textAlign: 'center',
+    marginTop: spacing.sm,
+  },
+  endedCard: {
+    marginHorizontal: spacing.md,
+    marginTop: spacing.md,
+    borderRadius: borderRadius.lg,
+    overflow: 'hidden',
+    ...shadows.lg,
+  },
+  endedCardGradient: {
+    padding: spacing.xl,
+    alignItems: 'center',
+  },
+  endedIconContainer: {
+    marginBottom: spacing.md,
+  },
+  endedTitle: {
+    ...typography.h3,
+    color: colors.text,
+    marginBottom: spacing.sm,
+    textAlign: 'center',
+  },
+  finalPrice: {
+    ...typography.h4,
+    color: colors.primary,
+    marginBottom: spacing.md,
+    fontWeight: '700',
+  },
+  winnerBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.warning + '20',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.md,
+    marginBottom: spacing.md,
+    gap: spacing.sm,
+  },
+  winnerText: {
+    ...typography.bodyBold,
+    color: colors.warning,
+  },
   loserText: {
-    fontSize: 14,
-    color: '#666',
+    ...typography.body,
+    color: colors.textSecondary,
     textAlign: 'center',
   },
   paymentBtn: {
-    backgroundColor: '#4CAF50',
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-    borderRadius: 12,
+    borderRadius: borderRadius.md,
+    overflow: 'hidden',
+    ...shadows.lg,
+  },
+  paymentBtnGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    gap: spacing.sm,
   },
   paymentBtnText: {
+    ...typography.bodyBold,
     color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
   },
 });

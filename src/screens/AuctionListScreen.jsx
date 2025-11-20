@@ -137,64 +137,78 @@ const AuctionListScreen = () => {
             const auctionId = auction.auctionId || auction.id;
             
             return (
-              <Pressable
-                key={auctionId}
-                style={styles.card}
-                onPress={() => navigation.navigate('AuctionRoom', { auctionId })}
-              >
+              <View key={auctionId} style={styles.card}>
                 {/* Image with overlay */}
-                <View style={styles.imageContainer}>
-                  <Image style={styles.image} source={{ uri: imageUrl }} />
-                  <LinearGradient
-                    colors={['transparent', 'rgba(0,0,0,0.7)']}
-                    style={styles.imageOverlay}
-                  >
-                    <View style={styles.liveBadge}>
-                      <View style={styles.liveDot} />
-                      <Text style={styles.liveText}>ĐANG DIỄN RA</Text>
-                    </View>
-                  </LinearGradient>
-                </View>
+                <Pressable
+                  onPress={() => navigation.navigate('AuctionRoom', { auctionId })}
+                >
+                  <View style={styles.imageContainer}>
+                    <Image style={styles.image} source={{ uri: imageUrl }} />
+                    <LinearGradient
+                      colors={['transparent', 'rgba(0,0,0,0.7)']}
+                      style={styles.imageOverlay}
+                    >
+                      <View style={styles.liveBadge}>
+                        <View style={styles.liveDot} />
+                        <Text style={styles.liveText}>ĐANG DIỄN RA</Text>
+                      </View>
+                    </LinearGradient>
+                  </View>
+                </Pressable>
 
                 <View style={styles.cardContent}>
-                  <Text style={styles.title} numberOfLines={2}>
-                    {productTitle}
-                  </Text>
-                  
-                  <View style={styles.priceContainer}>
-                    <Text style={styles.priceLabel}>Giá hiện tại</Text>
-                    <Text style={styles.price}>
-                      {parseFloat(currentPrice).toLocaleString('vi-VN')} ₫
+                  <Pressable
+                    onPress={() => navigation.navigate('AuctionRoom', { auctionId })}
+                  >
+                    <Text style={styles.title} numberOfLines={2}>
+                      {productTitle}
                     </Text>
-                  </View>
+                    
+                    <View style={styles.priceContainer}>
+                      <Text style={styles.priceLabel}>Giá hiện tại</Text>
+                      <Text style={styles.price}>
+                        {parseFloat(currentPrice).toLocaleString('vi-VN')} ₫
+                      </Text>
+                    </View>
 
                   <View style={styles.statsContainer}>
                     <View style={styles.statItem}>
-                      <Ionicons name="time-outline" size={16} color={colors.error} />
-                      <Text style={styles.statText}>
+                      <View style={styles.statIconContainer}>
+                        <Ionicons name="time" size={14} color={colors.error} />
+                      </View>
+                      <Text style={styles.statText} numberOfLines={1}>
                         {formatTimeRemaining(auction.endTime)}
                       </Text>
                     </View>
                     <View style={styles.statItem}>
-                      <Ionicons name="people-outline" size={16} color={colors.primary} />
-                      <Text style={styles.statText}>
+                      <View style={styles.statIconContainer}>
+                        <Ionicons name="people" size={14} color={colors.primary} />
+                      </View>
+                      <Text style={styles.statText} numberOfLines={1}>
                         {auction.bidCount || 0} lượt
                       </Text>
                     </View>
                   </View>
+                  </Pressable>
 
-                  {/* Gradient Button */}
-                  <LinearGradient
-                    colors={[colors.gradientStart, colors.gradientEnd]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.joinBtn}
+                  {/* Gradient Button với animation */}
+                  <Pressable
+                    onPress={() => navigation.navigate('AuctionRoom', { auctionId })}
+                    style={styles.joinBtnContainer}
                   >
-                    <Ionicons name="hammer" size={18} color="#fff" />
-                    <Text style={styles.joinBtnText}>Tham gia ngay</Text>
-                  </LinearGradient>
+                    <LinearGradient
+                      colors={[colors.gradientStart, colors.gradientEnd]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={styles.joinBtn}
+                    >
+                      <Ionicons name="hammer" size={20} color="#fff" />
+                      <Text style={styles.joinBtnText}>Tham gia ngay</Text>
+                      <Ionicons name="arrow-forward" size={16} color="#fff" />
+                    </LinearGradient>
+                  </Pressable>
                 </View>
-              </Pressable>
+              </View>
             );
           }) : null}
 
@@ -377,22 +391,37 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
+    flex: 1,
+  },
+  statIconContainer: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   statText: {
     ...typography.small,
     color: colors.textSecondary,
+    flex: 1,
+  },
+  joinBtnContainer: {
+    borderRadius: borderRadius.md,
+    overflow: 'hidden',
+    ...shadows.md,
   },
   joinBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.md,
-    gap: spacing.xs,
+    paddingVertical: spacing.md,
+    gap: spacing.sm,
   },
   joinBtnText: {
-    ...typography.captionBold,
+    ...typography.bodyBold,
     color: '#fff',
+    fontSize: 14,
   },
   emptyContainer: {
     alignItems: 'center',
