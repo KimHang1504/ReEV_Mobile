@@ -11,9 +11,11 @@ import {
   TextInput,
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { productService } from '../services/productService';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { colors, spacing, borderRadius, typography, shadows } from '../constants/theme';
 
 const HomeScreen = () => {
   const navigation = useNavigation();
@@ -61,84 +63,120 @@ const HomeScreen = () => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.container}>
-
+      {/* Gradient Header */}
+      <LinearGradient
+        colors={[colors.gradientStart, colors.gradientEnd]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.headerGradient}
+      >
         <View style={styles.header}>
           <Image
             source={require('../../assets/chargeX_Logo.png')}
             style={styles.logo}
             resizeMode="contain"
           />
-
           <View style={styles.headerIcons}>
-            <Pressable style={styles.iconButton}>
-              <Ionicons name="cart-outline" size={20} color="#007AFF" />
+            <Pressable
+              style={styles.iconButton}
+              onPress={() => navigation.navigate('Cart')}
+            >
+              <Ionicons name="cart" size={22} color="#fff" />
             </Pressable>
             <Pressable style={styles.iconButton}>
-              <Ionicons name="notifications-outline" size={20} color="#007AFF" />
+              <Ionicons name="notifications" size={22} color="#fff" />
               <View style={styles.dot} />
             </Pressable>
           </View>
         </View>
 
-        {/* 🔹 Ô tìm kiếm */}
+        {/* Search Box */}
         <View style={styles.searchBox}>
-          <Ionicons name="search-outline" size={20} color="#666" />
+          <Ionicons name="search" size={20} color={colors.textSecondary} />
           <TextInput
             placeholder="Tìm kiếm sản phẩm..."
-            placeholderTextColor="#999"
+            placeholderTextColor={colors.textLight}
             style={styles.searchInput}
             value={search}
             onChangeText={setSearch}
           />
-          <Ionicons name="options-outline" size={20} color="#007AFF" />
+          {search.length > 0 && (
+            <Pressable onPress={() => setSearch('')}>
+              <Ionicons name="close-circle" size={20} color={colors.textSecondary} />
+            </Pressable>
+          )}
         </View>
+      </LinearGradient>
 
-        {/* 🔹 Tiêu đề */}
-        <Text style={styles.sectionTitle}>Sản phẩm nổi bật</Text>
+      <ScrollView contentContainerStyle={styles.container}>
+        {/* Section Header */}
+        <View style={styles.sectionHeader}>
+          <View style={styles.sectionTitleContainer}>
+            <Ionicons name="flash" size={24} color={colors.secondary} />
+            <Text style={styles.sectionTitle}>Sản phẩm nổi bật</Text>
+          </View>
+          <Text style={styles.productCount}>
+            {filteredItems.length} sản phẩm
+          </Text>
+        </View>
 
         {/* 🔹 Danh sách sản phẩm */}
         <View style={styles.grid}>
-          {filteredItems.map((item) => (
-            <View key={item.id} style={styles.card}>
+          {filteredItems.map((item) => {
+            const imageUrl = item.imageUrls?.[0] || item.images?.[0] || 'https://via.placeholder.com/200';
+            const price = item.price_buy_now || 0;
+            
+            return (
               <Pressable
-                onPress={() =>
-                  navigation.navigate('Detail', { productId: item.id })
-                }
+                key={item.id}
+                style={styles.card}
+                onPress={() => navigation.navigate('Detail', { productId: item.id })}
               >
-                <Image
-                  style={styles.image}
-                  source={{
-                    uri:
-                      item.imageUrls?.[0] ||
-                      item.images?.[0] ||
-                      'https://via.placeholder.com/200',
-                  }}
-                />
-                <View style={styles.info}>
+                <View style={styles.imageContainer}>
+                  <Image style={styles.image} source={{ uri: imageUrl }} />
+                  {item.is_auction && (
+                    <View style={styles.auctionBadge}>
+                      <Ionicons name="hammer" size={12} color="#fff" />
+                      <Text style={styles.auctionText}>AUCTION</Text>
+                    </View>
+                  )}
+                </View>
+
+                <View style={styles.cardContent}>
                   <Text style={styles.title} numberOfLines={2}>
-                    {item.title || 'No title'}
+                    {item.title || 'Sản phẩm'}
                   </Text>
                   <Text style={styles.price}>
-                    {item.price_buy_now
-                      ? `$${parseFloat(item.price_buy_now).toLocaleString()}`
-                      : '—'}
+                    {price > 0
+                      ? `${parseFloat(price).toLocaleString('vi-VN')} ₫`
+                      : 'Liên hệ'}
                   </Text>
+
+                  <Pressable
+                    style={styles.buyNowBtn}
+                    onPress={() => navigation.navigate('Checkout', { product: item })}
+                  >
+                    <LinearGradient
+                      colors={[colors.gradientStart, colors.gradientEnd]}
+                      style={styles.buyNowBtnGradient}
+                    >
+                      <Ionicons name="flash" size={16} color="#fff" />
+                      <Text style={styles.buyNowText}>Mua ngay</Text>
+                    </LinearGradient>
+                  </Pressable>
                 </View>
               </Pressable>
-
-              {/* 🔹 Nút MUA NGAY */}
-              <Pressable
-                style={styles.buyNowBtn}
-                onPress={() => navigation.navigate('PaymentScreen', { product: item })}
-              >
-                <Text style={styles.buyNowText}>Mua ngay</Text>
-              </Pressable>
-            </View>
-          ))}
+            );
+          })}
 
           {filteredItems.length === 0 && (
-            <Text style={styles.emptyText}>Không có sản phẩm nào phù hợp.</Text>
+            <View style={styles.emptyContainer}>
+              <Ionicons name="search-outline" size={80} color={colors.textLight} />
+              <Text style={styles.emptyTitle}>Không tìm thấy sản phẩm</Text>
+              <Text style={styles.emptyText}>
+                Thử tìm kiếm với từ khóa khác
+              </Text>
+            </View>
           )}
         </View>
 
@@ -152,156 +190,179 @@ export default HomeScreen;
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#fff', // ❌ bỏ màu xanh
+    backgroundColor: colors.background,
   },
   container: {
-    padding: 16,
+    padding: spacing.md,
     paddingBottom: 80,
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: colors.background,
   },
-  // 🔹 Header
+  headerGradient: {
+    paddingTop: spacing.md,
+    paddingBottom: spacing.lg,
+    paddingHorizontal: spacing.md,
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: spacing.md,
   },
-  locationLabel: {
-    fontSize: 12,
-    color: '#888',
-  },
-  locationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 2,
-  },
-  locationText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#007AFF',
-    marginHorizontal: 4,
+  logo: {
+    width: 120,
+    height: 40,
   },
   headerIcons: {
     flexDirection: 'row',
-    gap: 12,
+    gap: spacing.sm,
   },
   iconButton: {
-    backgroundColor: '#F3F8FF',
-    padding: 8,
-    borderRadius: 10,
+    width: 44,
+    height: 44,
+    borderRadius: borderRadius.md,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
     position: 'relative',
   },
   dot: {
     position: 'absolute',
-    top: 6,
-    right: 6,
+    top: 8,
+    right: 8,
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: 'red',
+    backgroundColor: colors.error,
   },
-  // 🔍 Search box
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F5F7FA',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    height: 46,
-    marginBottom: 20,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
+    height: 50,
+    gap: spacing.sm,
   },
   searchInput: {
     flex: 1,
-    marginHorizontal: 8,
-    color: '#333',
-    fontSize: 15,
+    ...typography.body,
+    color: colors.text,
   },
-  // Danh sách sản phẩm
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+    marginTop: spacing.sm,
+  },
+  sectionTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1A237E',
-    marginBottom: 12,
+    ...typography.h3,
+    color: colors.text,
+  },
+  productCount: {
+    ...typography.captionBold,
+    color: colors.primary,
+    backgroundColor: colors.primary + '15',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.full,
   },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
   },
-
   card: {
     width: '48%',
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    marginBottom: 16,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
+    marginBottom: spacing.md,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
-    elevation: 2,
-    minHeight: 250, // ✅ Chiều cao cố định cho đồng bộ
+    ...shadows.md,
   },
-
+  imageContainer: {
+    position: 'relative',
+    width: '100%',
+    height: 160,
+  },
   image: {
     width: '100%',
-    height: 130,
+    height: '100%',
+    resizeMode: 'cover',
+    backgroundColor: colors.divider,
   },
-  info: {
-    padding: 10,
+  auctionBadge: {
+    position: 'absolute',
+    top: spacing.sm,
+    right: spacing.sm,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 90, // ✅ Giữ khối info cao đều
+    backgroundColor: colors.secondary,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: borderRadius.sm,
+    gap: 4,
   },
-
-  title: {
-    fontWeight: '700',       // ✅ In đậm
-    fontSize: 16,            // ✅ To hơn giá
-    color: '#222',
-    marginBottom: 6,
-    textAlign: 'center',
-    height: 42,              // ✅ Cố định chiều cao dòng tên (2 dòng)
-    lineHeight: 21,          // Cân đối khoảng cách giữa 2 dòng
-  },
-
-  price: {
-    color: '#777',           // ✅ Màu xám
-    fontWeight: '600',
-    fontSize: 14,
-    textAlign: 'center',
-  },
-
-
-
-  buyNowBtn: {
-    backgroundColor: '#28a745', // xanh lá nhẹ
-    paddingVertical: 8,
-    marginHorizontal: 10,
-    borderRadius: 10,
-    marginBottom: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  buyNowText: {
+  auctionText: {
+    ...typography.small,
     color: '#fff',
     fontWeight: '700',
-    fontSize: 14,
+    fontSize: 10,
   },
-
+  cardContent: {
+    padding: spacing.md,
+  },
+  title: {
+    ...typography.bodyBold,
+    color: colors.text,
+    marginBottom: spacing.sm,
+    minHeight: 44,
+  },
+  price: {
+    ...typography.h4,
+    color: colors.primary,
+    marginBottom: spacing.md,
+  },
+  buyNowBtn: {
+    borderRadius: borderRadius.md,
+    overflow: 'hidden',
+  },
+  buyNowBtnGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.sm,
+    gap: spacing.xs,
+  },
+  buyNowText: {
+    ...typography.captionBold,
+    color: '#fff',
+  },
+  emptyContainer: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.xxl,
+  },
+  emptyTitle: {
+    ...typography.h3,
+    color: colors.text,
+    marginTop: spacing.md,
+    marginBottom: spacing.sm,
+  },
   emptyText: {
+    ...typography.body,
+    color: colors.textSecondary,
     textAlign: 'center',
-    color: '#666',
-    marginTop: 20,
-    fontStyle: 'italic',
   },
-  logo: {
-  width: 120,
-  height: 40, 
-  marginLeft: -50,
-},
 });

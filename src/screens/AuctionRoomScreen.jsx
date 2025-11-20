@@ -1,5 +1,5 @@
 // src/screens/AuctionRoomScreen.jsx
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useRef } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { auctionService } from '../services/auctionService';
+import { socketService } from '../services/socketService';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AuthContext } from '../context/AuthContext';
@@ -28,6 +29,8 @@ const AuctionRoomScreen = () => {
   const [bidAmount, setBidAmount] = useState('');
   const [placing, setPlacing] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState('');
+  const [isConnected, setIsConnected] = useState(false);
+  const socketConnectedRef = useRef(false);
 
   // 🔹 Fetch auction detail
   const fetchAuctionDetail = async () => {
@@ -53,6 +56,73 @@ const AuctionRoomScreen = () => {
     }
   }, [auctionId]);
 
+  // 🔹 Connect to socket and join auction room
+  useEffect(() => {
+    if (!auctionId || !user?.sub) return;
+
+    const connectSocket = async () => {
+      try {
+        await socketService.connect(user.sub);
+        socketService.joinAuction(auctionId);
+        setIsConnected(true);
+        socketConnectedRef.current = true;
+
+        // Listen for auction state updates
+        socketService.onAuctionState((state) => {
+          console.log('[AuctionRoom] Received state:', state);
+          setAuction((prev) => ({
+            ...prev,
+            ...state,
+            currentPrice: state.currentPrice || prev?.currentPrice,
+            endTime: state.endTime || prev?.endTime,
+          }));
+        });
+
+        // Listen for price updates
+        socketService.onPriceUpdate((update) => {
+          console.log('[AuctionRoom] Price update:', update);
+          setAuction((prev) => ({
+            ...prev,
+            currentPrice: update.currentPrice,
+            endTime: update.endTime,
+            winnerId: update.winnerId,
+          }));
+          // Refresh auction detail
+          fetchAuctionDetail();
+        });
+
+        // Listen for auction extended
+        socketService.onAuctionExtended((data) => {
+          console.log('[AuctionRoom] Auction extended:', data);
+          setAuction((prev) => ({
+            ...prev,
+            endTime: data.endTime,
+          }));
+        });
+
+        // Listen for errors
+        socketService.onError((error) => {
+          console.error('[AuctionRoom] Socket error:', error);
+          Alert.alert('Lỗi', error.message || 'Có lỗi xảy ra');
+        });
+      } catch (err) {
+        console.error('[AuctionRoom] Socket connection error:', err);
+        // Fallback to REST API if socket fails
+      }
+    };
+
+    connectSocket();
+
+    return () => {
+      if (socketConnectedRef.current) {
+        socketService.leaveAuction(auctionId);
+        socketService.removeAllListeners();
+        socketService.disconnect();
+        socketConnectedRef.current = false;
+      }
+    };
+  }, [auctionId, user?.sub]);
+
   // 🔹 Countdown timer
   useEffect(() => {
     if (!auction?.endTime) return;
@@ -73,12 +143,24 @@ const AuctionRoomScreen = () => {
             [
               {
                 text: 'Thanh toán ngay',
-                onPress: () => {
-                  // Navigate to payment with orderId (backend creates order when auction ends)
-                  navigation.navigate('PaymentScreen', { 
-                    auctionId: auction.id,
-                    amount: auction.currentPrice || auction.startingPrice,
-                  });
+                onPress: async () => {
+                  try {
+                    // Fetch order ID from backend before navigating to payment
+                    const order = await auctionService.getOrderByAuctionId(auction.id);
+                    if (order && order.orderId) {
+                      navigation.navigate('PaymentScreen', {
+                        orderId: order.orderId,
+                        auctionId: auction.id,
+                        amount: auction.currentPrice || auction.startingPrice,
+                        productTitle: auction.product?.title || auction.title,
+                      });
+                    } else {
+                      Alert.alert('Lỗi', 'Không thể tìm thấy thông tin đơn hàng. Vui lòng thử lại sau.');
+                    }
+                  } catch (err) {
+                    console.error('❌ Error fetching order:', err);
+                    Alert.alert('Lỗi', 'Không thể lấy thông tin thanh toán. Vui lòng thử lại.');
+                  }
                 },
               },
               { text: 'Để sau', style: 'cancel' },
@@ -96,7 +178,7 @@ const AuctionRoomScreen = () => {
     return () => clearInterval(interval);
   }, [auction, user]);
 
-  // 🔹 Handle place bid
+  // 🔹 Handle place bid - use socket if connected, otherwise REST API
   const handlePlaceBid = async () => {
     const amount = parseFloat(bidAmount);
     if (!amount || isNaN(amount)) {
@@ -109,16 +191,25 @@ const AuctionRoomScreen = () => {
     const minBid = currentPrice + minIncrement;
 
     if (amount < minBid) {
-      Alert.alert('Lỗi', `Giá đặt tối thiểu là $${minBid.toLocaleString()}`);
+      Alert.alert('Lỗi', `Giá đặt tối thiểu là ${minBid.toLocaleString()} ₫`);
       return;
     }
 
     try {
       setPlacing(true);
-      await auctionService.placeBid(auctionId, amount);
-      Alert.alert('Thành công!', 'Đặt giá thành công. Chúc bạn may mắn!');
-      // Refresh auction detail
-      await fetchAuctionDetail();
+      
+      // Use socket if connected, otherwise fallback to REST API
+      if (socketService.isConnected()) {
+        const clientBidId = `bid_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        socketService.placeBid(auctionId, amount, clientBidId);
+        // Socket will emit price_update event, no need to show alert immediately
+        // Wait for server confirmation via socket events
+      } else {
+        // Fallback to REST API
+        await auctionService.placeBid(auctionId, amount);
+        Alert.alert('Thành công!', 'Đặt giá thành công. Chúc bạn may mắn!');
+        await fetchAuctionDetail();
+      }
     } catch (err) {
       console.error('❌ Place bid error:', err);
       const errorMsg = err?.response?.data?.message || 'Không thể đặt giá. Vui lòng thử lại.';
@@ -187,6 +278,18 @@ const AuctionRoomScreen = () => {
             <Ionicons name="people-outline" size={20} color="#4C6EF5" />
             <Text style={styles.bidCountText}>
               {auction.bidCount || 0} lượt đặt giá
+            </Text>
+          </View>
+
+          {/* Socket Connection Status */}
+          <View style={styles.connectionRow}>
+            <Ionicons 
+              name={isConnected ? "radio-button-on" : "radio-button-off"} 
+              size={16} 
+              color={isConnected ? "#4CAF50" : "#FF6B6B"} 
+            />
+            <Text style={[styles.connectionText, { color: isConnected ? "#4CAF50" : "#FF6B6B" }]}>
+              {isConnected ? "Đã kết nối real-time" : "Đang kết nối..."}
             </Text>
           </View>
         </View>
@@ -339,6 +442,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#4C6EF5',
     marginLeft: 8,
+  },
+  connectionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  connectionText: {
+    fontSize: 12,
+    marginLeft: 6,
+    fontWeight: '500',
   },
   biddingCard: {
     backgroundColor: '#fff',

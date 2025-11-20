@@ -9,11 +9,13 @@ import {
     ActivityIndicator,
     Alert,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { walletService } from '../services/walletService';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { colors, spacing, borderRadius, typography, shadows } from '../constants/theme';
 
 const ProfileScreen = () => {
     const { user, logout } = useAuth();
@@ -55,39 +57,94 @@ const ProfileScreen = () => {
     if (loading) {
         return (
             <View style={styles.centered}>
-                <ActivityIndicator size="large" color="#007AFF" />
+                <ActivityIndicator size="large" color={colors.primary} />
             </View>
         );
     }
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
-            <ScrollView contentContainerStyle={styles.container}>
-                {/* Header */}
+        <SafeAreaView style={styles.safeArea}>
+            {/* Gradient Header */}
+            <LinearGradient
+                colors={[colors.gradientStart, colors.gradientEnd]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.headerGradient}
+            >
                 <View style={styles.header}>
-                    <Image
-                        style={styles.avatar}
-                        source={{
-                            uri:
-                                user?.image ||
-                                'https://cdn-icons-png.flaticon.com/512/847/847969.png',
-                        }}
-                    />
+                    <View style={styles.avatarContainer}>
+                        <Image
+                            style={styles.avatar}
+                            source={{
+                                uri:
+                                    user?.image ||
+                                    'https://cdn-icons-png.flaticon.com/512/847/847969.png',
+                            }}
+                        />
+                        <View style={styles.avatarBadge}>
+                            <Ionicons name="checkmark-circle" size={20} color={colors.success} />
+                        </View>
+                    </View>
                     <Text style={styles.name}>{user?.fullName || 'Người dùng'}</Text>
                     <Text style={styles.email}>{user?.email || 'No email'}</Text>
                 </View>
+            </LinearGradient>
 
-                {/* Wallet */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>💰 Ví điện tử</Text>
-                    <View style={styles.row}>
-                        <Text style={styles.label}>Số dư khả dụng:</Text>
-                        <Text style={styles.value}>
-                            {wallet?.balance
-                                ? `${parseFloat(wallet.balance).toLocaleString()} ₫`
-                                : '0 ₫'}
-                        </Text>
-                    </View>
+            <ScrollView contentContainerStyle={styles.container}>
+
+                {/* Wallet Card */}
+                <View style={styles.walletCard}>
+                    <LinearGradient
+                        colors={[colors.success + '20', colors.success + '10']}
+                        style={styles.walletCardGradient}
+                    >
+                        <View style={styles.walletHeader}>
+                            <Ionicons name="wallet" size={28} color={colors.success} />
+                            <Text style={styles.walletTitle}>Ví điện tử</Text>
+                        </View>
+                        <View style={styles.balanceContainer}>
+                            <Text style={styles.balanceLabel}>Số dư khả dụng</Text>
+                            <Text style={styles.balanceValue}>
+                                {wallet?.available || wallet?.balance
+                                    ? `${parseFloat(wallet.available || wallet.balance).toLocaleString('vi-VN')} ₫`
+                                    : '0 ₫'}
+                            </Text>
+                        </View>
+                        {wallet?.held && (
+                            <View style={styles.heldContainer}>
+                                <Text style={styles.heldLabel}>Đang giữ (escrow):</Text>
+                                <Text style={styles.heldValue}>
+                                    {parseFloat(wallet.held).toLocaleString('vi-VN')} ₫
+                                </Text>
+                            </View>
+                        )}
+                        <View style={styles.walletActions}>
+                            <Pressable
+                                style={styles.walletBtn}
+                                onPress={() => navigation.navigate('Deposit')}
+                            >
+                                <LinearGradient
+                                    colors={[colors.success, colors.success + 'DD']}
+                                    style={styles.walletBtnGradient}
+                                >
+                                    <Ionicons name="add-circle" size={20} color="#fff" />
+                                    <Text style={styles.walletBtnText}>Nạp tiền</Text>
+                                </LinearGradient>
+                            </Pressable>
+                            <Pressable
+                                style={styles.walletBtn}
+                                onPress={() => navigation.navigate('Withdraw')}
+                            >
+                                <LinearGradient
+                                    colors={[colors.error, colors.error + 'DD']}
+                                    style={styles.walletBtnGradient}
+                                >
+                                    <Ionicons name="remove-circle" size={20} color="#fff" />
+                                    <Text style={styles.walletBtnText}>Rút tiền</Text>
+                                </LinearGradient>
+                            </Pressable>
+                        </View>
+                    </LinearGradient>
                 </View>
 
                 {/* Contact */}
@@ -132,8 +189,13 @@ const ProfileScreen = () => {
 
                 {/* Logout */}
                 <Pressable style={styles.logoutBtn} onPress={handleLogout}>
-                    <Ionicons name="log-out-outline" size={20} color="#fff" />
-                    <Text style={styles.logoutText}>Đăng xuất</Text>
+                    <LinearGradient
+                        colors={[colors.error, colors.error + 'DD']}
+                        style={styles.logoutBtnGradient}
+                    >
+                        <Ionicons name="log-out" size={20} color="#fff" />
+                        <Text style={styles.logoutText}>Đăng xuất</Text>
+                    </LinearGradient>
                 </Pressable>
             </ScrollView>
         </SafeAreaView>
@@ -144,52 +206,114 @@ const ProfileScreen = () => {
 export default ProfileScreen;
 
 const styles = StyleSheet.create({
+    safeArea: {
+        flex: 1,
+        backgroundColor: colors.background,
+    },
     container: {
-        padding: 16,
-        backgroundColor: '#F8F9FB',
+        padding: spacing.md,
+        paddingBottom: spacing.xxl,
     },
     centered: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
+        backgroundColor: colors.background,
+    },
+    headerGradient: {
+        paddingTop: spacing.lg,
+        paddingBottom: spacing.xl,
+        paddingHorizontal: spacing.md,
     },
     header: {
         alignItems: 'center',
-        marginBottom: 24,
-        backgroundColor: '#E0F2FF',
-        paddingVertical: 24,
-        borderRadius: 16,
+    },
+    avatarContainer: {
+        position: 'relative',
+        marginBottom: spacing.md,
     },
     avatar: {
-        width: 90,
-        height: 90,
-        borderRadius: 45,
-        marginBottom: 10,
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+        borderWidth: 4,
+        borderColor: '#fff',
+    },
+    avatarBadge: {
+        position: 'absolute',
+        bottom: 0,
+        right: 0,
+        backgroundColor: '#fff',
+        borderRadius: 15,
+        padding: 2,
     },
     name: {
-        fontSize: 20,
-        fontWeight: '700',
-        color: '#222',
+        ...typography.h2,
+        color: '#fff',
+        marginBottom: spacing.xs,
     },
     email: {
-        color: '#555',
+        ...typography.body,
+        color: 'rgba(255,255,255,0.9)',
+    },
+    walletCard: {
+        marginBottom: spacing.md,
+        borderRadius: borderRadius.lg,
+        overflow: 'hidden',
+        ...shadows.lg,
+    },
+    walletCardGradient: {
+        padding: spacing.md,
+    },
+    walletHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: spacing.md,
+        gap: spacing.sm,
+    },
+    walletTitle: {
+        ...typography.h4,
+        color: colors.text,
+    },
+    balanceContainer: {
+        marginBottom: spacing.sm,
+    },
+    balanceLabel: {
+        ...typography.caption,
+        color: colors.textSecondary,
+        marginBottom: spacing.xs,
+    },
+    balanceValue: {
+        ...typography.h2,
+        color: colors.success,
+    },
+    heldContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        paddingTop: spacing.sm,
+        borderTopWidth: 1,
+        borderTopColor: colors.divider,
+        marginBottom: spacing.md,
+    },
+    heldLabel: {
+        ...typography.caption,
+        color: colors.textSecondary,
+    },
+    heldValue: {
+        ...typography.bodyBold,
+        color: colors.warning,
     },
     section: {
-        backgroundColor: '#fff',
-        borderRadius: 12,
-        padding: 16,
-        marginBottom: 16,
-        shadowColor: '#000',
-        shadowOpacity: 0.05,
-        shadowOffset: { width: 0, height: 1 },
-        shadowRadius: 4,
-        elevation: 1,
+        backgroundColor: colors.surface,
+        borderRadius: borderRadius.lg,
+        padding: spacing.md,
+        marginBottom: spacing.md,
+        ...shadows.md,
     },
     sectionTitle: {
-        fontSize: 16,
-        fontWeight: '700',
-        marginBottom: 10,
-        color: '#333',
+        ...typography.h4,
+        color: colors.text,
+        marginBottom: spacing.md,
     },
     row: {
         flexDirection: 'row',
@@ -215,19 +339,42 @@ const styles = StyleSheet.create({
         padding: 10,
         marginTop: 4,
     },
-    logoutBtn: {
+    walletActions: {
+        flexDirection: 'row',
+        gap: spacing.sm,
+        marginTop: spacing.sm,
+    },
+    walletBtn: {
+        flex: 1,
+        borderRadius: borderRadius.md,
+        overflow: 'hidden',
+    },
+    walletBtnGradient: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#E53935',
-        paddingVertical: 14,
-        borderRadius: 10,
-        marginTop: 20,
+        paddingVertical: spacing.sm,
+        gap: spacing.xs,
+    },
+    walletBtnText: {
+        ...typography.captionBold,
+        color: '#fff',
+    },
+    logoutBtn: {
+        borderRadius: borderRadius.md,
+        overflow: 'hidden',
+        marginTop: spacing.lg,
+        ...shadows.md,
+    },
+    logoutBtnGradient: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: spacing.md,
+        gap: spacing.sm,
     },
     logoutText: {
+        ...typography.bodyBold,
         color: '#fff',
-        fontWeight: '600',
-        marginLeft: 8,
-        fontSize: 16,
     },
 });

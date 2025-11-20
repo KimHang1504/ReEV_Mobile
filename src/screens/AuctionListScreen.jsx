@@ -11,25 +11,34 @@ import {
   StyleSheet,
   RefreshControl,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { auctionService } from '../services/auctionService';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { colors, spacing, borderRadius, typography, shadows } from '../constants/theme';
 
 const AuctionListScreen = () => {
   const navigation = useNavigation();
   const [auctions, setAuctions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  
+  // Đảm bảo auctions luôn là array
+  const safeAuctions = Array.isArray(auctions) ? auctions : [];
 
   // 🔹 Fetch auctions
   const fetchAuctions = async () => {
     try {
       setLoading(true);
       const list = await auctionService.getAllAuctions({ page: 1, limit: 30, status: 'live' });
-      setAuctions(list || []);
+      // Đảm bảo luôn là array
+      const auctionsArray = Array.isArray(list) ? list : (list?.items ? list.items : []);
+      setAuctions(auctionsArray);
     } catch (err) {
       console.error('❌ Fetch auctions error:', err);
+      // Set empty array nếu có lỗi
+      setAuctions([]);
       if (err?.response?.status === 401) {
         Alert.alert('Phiên đăng nhập hết hạn', 'Vui lòng đăng nhập lại.');
         navigation.replace('Login');
@@ -69,93 +78,135 @@ const AuctionListScreen = () => {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#4C6EF5" />
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={styles.loadingText}>Đang tải...</Text>
       </View>
     );
   }
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView
-        contentContainerStyle={styles.container}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
+      {/* 🔹 Gradient Header */}
+      <LinearGradient
+        colors={[colors.gradientStart, colors.gradientEnd]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.headerGradient}
       >
-        {/* 🔹 Header */}
         <View style={styles.header}>
           <Image
             source={require('../../assets/chargeX_Logo.png')}
             style={styles.logo}
             resizeMode="contain"
           />
-          <Text style={styles.headerTitle}>Đấu giá trực tuyến</Text>
+          <View style={styles.headerTextContainer}>
+            <Text style={styles.headerTitle}>Đấu giá trực tuyến</Text>
+            <Text style={styles.headerSubtitle}>Tham gia ngay để có cơ hội sở hữu sản phẩm yêu thích</Text>
+          </View>
         </View>
+      </LinearGradient>
 
-        {/* 🔹 Tiêu đề */}
-        <Text style={styles.sectionTitle}>Phiên đấu giá đang diễn ra</Text>
+      <ScrollView
+        contentContainerStyle={styles.container}
+        refreshControl={
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+          />
+        }
+      >
+        {/* 🔹 Section Header */}
+        <View style={styles.sectionHeader}>
+          <View style={styles.sectionTitleContainer}>
+            <Ionicons name="flame" size={24} color={colors.error} />
+            <Text style={styles.sectionTitle}>Phiên đấu giá đang diễn ra</Text>
+          </View>
+          <Text style={styles.auctionCount}>{safeAuctions.length} phiên</Text>
+        </View>
 
         {/* 🔹 Danh sách auctions */}
         <View style={styles.grid}>
-          {auctions.map((auction) => {
+          {safeAuctions.length > 0 ? safeAuctions.map((auction) => {
             const productTitle = auction.product?.title || auction.title || 'Sản phẩm đấu giá';
             const currentPrice = auction.currentPrice || auction.startingPrice || 0;
             const imageUrl = auction.product?.imageUrls?.[0] || auction.imageUrls?.[0] || 'https://via.placeholder.com/200';
             
+            // Backend trả về auctionId, không phải id
+            const auctionId = auction.auctionId || auction.id;
+            
             return (
-              <View key={auction.id} style={styles.card}>
-                <Pressable
-                  onPress={() =>
-                    navigation.navigate('AuctionRoom', { auctionId: auction.id })
-                  }
-                >
-                  <Image
-                    style={styles.image}
-                    source={{ uri: imageUrl }}
-                  />
-                  <View style={styles.info}>
-                    <Text style={styles.title} numberOfLines={2}>
-                      {productTitle}
-                    </Text>
-                    <View style={styles.priceRow}>
-                      <Text style={styles.label}>Giá hiện tại:</Text>
-                      <Text style={styles.price}>
-                        ${parseFloat(currentPrice).toLocaleString()}
-                      </Text>
+              <Pressable
+                key={auctionId}
+                style={styles.card}
+                onPress={() => navigation.navigate('AuctionRoom', { auctionId })}
+              >
+                {/* Image with overlay */}
+                <View style={styles.imageContainer}>
+                  <Image style={styles.image} source={{ uri: imageUrl }} />
+                  <LinearGradient
+                    colors={['transparent', 'rgba(0,0,0,0.7)']}
+                    style={styles.imageOverlay}
+                  >
+                    <View style={styles.liveBadge}>
+                      <View style={styles.liveDot} />
+                      <Text style={styles.liveText}>ĐANG DIỄN RA</Text>
                     </View>
-                    <View style={styles.statusRow}>
-                      <Ionicons name="time-outline" size={16} color="#FF6B6B" />
-                      <Text style={styles.timeText}>
+                  </LinearGradient>
+                </View>
+
+                <View style={styles.cardContent}>
+                  <Text style={styles.title} numberOfLines={2}>
+                    {productTitle}
+                  </Text>
+                  
+                  <View style={styles.priceContainer}>
+                    <Text style={styles.priceLabel}>Giá hiện tại</Text>
+                    <Text style={styles.price}>
+                      {parseFloat(currentPrice).toLocaleString('vi-VN')} ₫
+                    </Text>
+                  </View>
+
+                  <View style={styles.statsContainer}>
+                    <View style={styles.statItem}>
+                      <Ionicons name="time-outline" size={16} color={colors.error} />
+                      <Text style={styles.statText}>
                         {formatTimeRemaining(auction.endTime)}
                       </Text>
                     </View>
-                    <View style={styles.bidCountRow}>
-                      <Ionicons name="people-outline" size={16} color="#4C6EF5" />
-                      <Text style={styles.bidCountText}>
-                        {auction.bidCount || 0} lượt đặt giá
+                    <View style={styles.statItem}>
+                      <Ionicons name="people-outline" size={16} color={colors.primary} />
+                      <Text style={styles.statText}>
+                        {auction.bidCount || 0} lượt
                       </Text>
                     </View>
                   </View>
-                </Pressable>
 
-                {/* 🔹 Nút THAM GIA ĐẤU GIÁ */}
-                <Pressable
-                  style={styles.joinBtn}
-                  onPress={() =>
-                    navigation.navigate('AuctionRoom', { auctionId: auction.id })
-                  }
-                >
-                  <Ionicons name="hammer-outline" size={18} color="#fff" />
-                  <Text style={styles.joinBtnText}>Tham gia đấu giá</Text>
-                </Pressable>
-              </View>
+                  {/* Gradient Button */}
+                  <LinearGradient
+                    colors={[colors.gradientStart, colors.gradientEnd]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.joinBtn}
+                  >
+                    <Ionicons name="hammer" size={18} color="#fff" />
+                    <Text style={styles.joinBtnText}>Tham gia ngay</Text>
+                  </LinearGradient>
+                </View>
+              </Pressable>
             );
-          })}
+          }) : null}
 
-          {auctions.length === 0 && (
+          {safeAuctions.length === 0 && !loading && (
             <View style={styles.emptyContainer}>
-              <Ionicons name="sad-outline" size={60} color="#ccc" />
-              <Text style={styles.emptyText}>Chưa có phiên đấu giá nào.</Text>
+              <View style={styles.emptyIconContainer}>
+                <Ionicons name="calendar-outline" size={80} color={colors.textLight} />
+              </View>
+              <Text style={styles.emptyTitle}>Chưa có phiên đấu giá</Text>
+              <Text style={styles.emptyText}>
+                Hãy quay lại sau để xem các phiên đấu giá mới
+              </Text>
             </View>
           )}
         </View>
@@ -169,38 +220,75 @@ export default AuctionListScreen;
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: colors.background,
   },
   container: {
-    padding: 16,
+    padding: spacing.md,
     paddingBottom: 80,
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: colors.background,
+  },
+  loadingText: {
+    marginTop: spacing.md,
+    ...typography.body,
+    color: colors.textSecondary,
+  },
+  headerGradient: {
+    paddingTop: spacing.md,
+    paddingBottom: spacing.lg,
+    paddingHorizontal: spacing.md,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
   },
   logo: {
-    width: 50,
-    height: 50,
-    marginRight: 12,
+    width: 56,
+    height: 56,
+    marginRight: spacing.md,
+    borderRadius: borderRadius.md,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    padding: spacing.xs,
+  },
+  headerTextContainer: {
+    flex: 1,
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1A237E',
+    ...typography.h2,
+    color: '#fff',
+    marginBottom: spacing.xs,
+  },
+  headerSubtitle: {
+    ...typography.caption,
+    color: 'rgba(255,255,255,0.9)',
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+    marginTop: spacing.sm,
+  },
+  sectionTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1A237E',
-    marginBottom: 12,
+    ...typography.h3,
+    color: colors.text,
+  },
+  auctionCount: {
+    ...typography.captionBold,
+    color: colors.primary,
+    backgroundColor: colors.primary + '15',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.full,
   },
   grid: {
     flexDirection: 'row',
@@ -209,92 +297,126 @@ const styles = StyleSheet.create({
   },
   card: {
     width: '48%',
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    marginBottom: 16,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
+    marginBottom: spacing.md,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
-    elevation: 2,
+    ...shadows.md,
+  },
+  imageContainer: {
+    position: 'relative',
+    width: '100%',
+    height: 160,
   },
   image: {
     width: '100%',
-    height: 130,
+    height: '100%',
+    resizeMode: 'cover',
   },
-  info: {
-    padding: 10,
+  imageOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: '40%',
+    justifyContent: 'flex-end',
+    padding: spacing.sm,
   },
-  title: {
-    fontWeight: '700',
-    fontSize: 15,
-    color: '#222',
-    marginBottom: 8,
-    height: 38,
-    lineHeight: 19,
-  },
-  priceRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  label: {
-    fontSize: 12,
-    color: '#666',
-  },
-  price: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#4C6EF5',
-  },
-  statusRow: {
+  liveBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
+    backgroundColor: colors.error,
+    alignSelf: 'flex-start',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.sm,
   },
-  timeText: {
-    fontSize: 12,
-    color: '#FF6B6B',
-    marginLeft: 4,
-    fontWeight: '600',
+  liveDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#fff',
+    marginRight: spacing.xs,
   },
-  bidCountRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  bidCountText: {
-    fontSize: 12,
-    color: '#4C6EF5',
-    marginLeft: 4,
-  },
-  joinBtn: {
-    backgroundColor: '#FF6B6B',
-    paddingVertical: 10,
-    marginHorizontal: 10,
-    borderRadius: 10,
-    marginBottom: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-  },
-  joinBtnText: {
+  liveText: {
+    ...typography.small,
     color: '#fff',
     fontWeight: '700',
-    fontSize: 14,
-    marginLeft: 6,
+    letterSpacing: 0.5,
   },
-  emptyContainer: {
-    flex: 1,
+  cardContent: {
+    padding: spacing.md,
+  },
+  title: {
+    ...typography.bodyBold,
+    color: colors.text,
+    marginBottom: spacing.sm,
+    minHeight: 44,
+  },
+  priceContainer: {
+    marginBottom: spacing.sm,
+  },
+  priceLabel: {
+    ...typography.small,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
+  },
+  price: {
+    ...typography.h4,
+    color: colors.primary,
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: spacing.md,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.divider,
+  },
+  statItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  statText: {
+    ...typography.small,
+    color: colors.textSecondary,
+  },
+  joinBtn: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 60,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.md,
+    gap: spacing.xs,
+  },
+  joinBtnText: {
+    ...typography.captionBold,
+    color: '#fff',
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.xxl,
+    paddingHorizontal: spacing.lg,
+  },
+  emptyIconContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: colors.divider,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.lg,
+  },
+  emptyTitle: {
+    ...typography.h3,
+    color: colors.text,
+    marginBottom: spacing.sm,
   },
   emptyText: {
+    ...typography.body,
+    color: colors.textSecondary,
     textAlign: 'center',
-    color: '#666',
-    marginTop: 12,
-    fontStyle: 'italic',
   },
 });

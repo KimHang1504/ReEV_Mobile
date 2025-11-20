@@ -7,13 +7,22 @@ export const auctionService = {
    */
   async getAllAuctions({ page = 1, limit = 20, status = 'live' } = {}) {
     try {
-      const res = await api.get('/auction', {
-        params: { page, limit, status },
+      // Backend endpoint là /auction/joinable với params: page, pageSize, status
+      const res = await api.get('/auction/joinable', {
+        params: { 
+          page, 
+          pageSize: limit,  // Backend dùng pageSize thay vì limit
+          status 
+        },
       });
-      return res.data?.data || res.data || [];
+      // Backend trả về format: { items: [...], meta: {...} }
+      const data = res.data?.items || res.data?.data || res.data;
+      // Đảm bảo luôn trả về array
+      return Array.isArray(data) ? data : [];
     } catch (err) {
       console.error('❌ getAllAuctions error:', err);
-      throw err;
+      // Trả về empty array thay vì throw để tránh crash
+      return [];
     }
   },
 
@@ -69,6 +78,25 @@ export const auctionService = {
       return res.data?.data || res.data || [];
     } catch (err) {
       console.error('❌ getMyWonAuctions error:', err);
+      throw err;
+    }
+  },
+
+  /**
+   * Lấy thông tin order cho một phiên đấu giá đã kết thúc
+   * Dùng để điều hướng tới trang thanh toán sau khi đấu giá kết thúc
+   */
+  async getOrderByAuctionId(auctionId) {
+    try {
+      const res = await api.get(`/auction/${auctionId}/order`);
+      // Unwrap NestJS response format if needed
+      let data = res.data;
+      if (data && typeof data === 'object' && data.data && data.success) {
+        data = data.data;
+      }
+      return data;
+    } catch (err) {
+      console.error('❌ getOrderByAuctionId error:', err);
       throw err;
     }
   },

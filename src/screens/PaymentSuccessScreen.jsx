@@ -1,13 +1,120 @@
-import React from "react";
-import { View, Text, Pressable, StyleSheet, Image } from "react-native";
+import React, { useEffect, useState } from "react";
+import { View, Text, Pressable, StyleSheet, Image, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Linking } from "react-native";
 
 const PaymentSuccessScreen = () => {
     const navigation = useNavigation();
     const { params } = useRoute();
     const { order } = params || {};
+    const [isSuccess, setIsSuccess] = useState(true);
+    const [code, setCode] = useState(null);
+    const [status, setStatus] = useState(null);
+
+    // 🔹 Parse URL params helper
+    const parseUrlParams = (url) => {
+        const params = {};
+        if (!url) return params;
+        const queryString = url.split('?')[1];
+        if (!queryString) return params;
+        queryString.split('&').forEach(param => {
+            const [key, value] = param.split('=');
+            if (key && value) {
+                params[decodeURIComponent(key)] = decodeURIComponent(value);
+            }
+        });
+        return params;
+    };
+
+    // 🔹 Check code từ URL params (khi redirect từ PayOS)
+    useEffect(() => {
+        // Kiểm tra nếu có params từ deep link hoặc URL
+        const checkPaymentStatus = async () => {
+            try {
+                // Lấy URL hiện tại nếu có
+                const initialUrl = await Linking.getInitialURL();
+                if (initialUrl) {
+                    const params = parseUrlParams(initialUrl);
+                    const codeParam = params.code;
+                    const statusParam = params.status;
+                    
+                    if (codeParam) {
+                        setCode(codeParam);
+                        // code=00 means success
+                        const success = codeParam === '00' || statusParam === 'success' || statusParam === 'paid';
+                        setIsSuccess(success);
+                        setStatus(statusParam);
+                        
+                        if (!success) {
+                            Alert.alert(
+                                'Thanh toán thất bại',
+                                `Code: ${codeParam}, Status: ${statusParam || 'unknown'}`,
+                                [{ text: 'OK', onPress: () => navigation.goBack() }]
+                            );
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error('Error checking payment status:', err);
+            }
+        };
+
+        checkPaymentStatus();
+
+        // Listen for URL changes
+        const subscription = Linking.addEventListener('url', ({ url }) => {
+            try {
+                const params = parseUrlParams(url);
+                const codeParam = params.code;
+                const statusParam = params.status;
+                
+                if (codeParam) {
+                    setCode(codeParam);
+                    const success = codeParam === '00' || statusParam === 'success' || statusParam === 'paid';
+                    setIsSuccess(success);
+                    setStatus(statusParam);
+                    
+                    if (!success) {
+                        Alert.alert(
+                            'Thanh toán thất bại',
+                            `Code: ${codeParam}, Status: ${statusParam || 'unknown'}`,
+                            [{ text: 'OK', onPress: () => navigation.goBack() }]
+                        );
+                    }
+                }
+            } catch (err) {
+                console.error('Error parsing URL:', err);
+            }
+        });
+
+        return () => {
+            subscription.remove();
+        };
+    }, [navigation]);
+
+    // 🔹 Nếu không thành công, hiển thị error
+    if (!isSuccess) {
+        return (
+            <SafeAreaView style={styles.safeArea}>
+                <View style={styles.iconBox}>
+                    <Ionicons name="close-circle" size={80} color="#E53935" />
+                    <Text style={[styles.title, { color: '#E53935' }]}>Thanh toán thất bại!</Text>
+                    <Text style={styles.sub}>
+                        Code: {code || 'Unknown'}, Status: {status || 'Unknown'}
+                    </Text>
+                </View>
+                <Pressable
+                    style={styles.homeBtn}
+                    onPress={() => navigation.replace("MainTabs")}
+                >
+                    <Ionicons name="home-outline" size={22} color="#007AFF" />
+                    <Text style={styles.homeText}>Quay lại Trang chủ</Text>
+                </Pressable>
+            </SafeAreaView>
+        );
+    }
 
     return (
         <SafeAreaView style={styles.safeArea}>

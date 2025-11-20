@@ -52,24 +52,49 @@ export default function App() {
     };
   }, []);
 
+  const parseUrlParams = (url) => {
+    const params = {};
+    if (!url) return params;
+    const queryString = url.split('?')[1];
+    if (!queryString) return params;
+    queryString.split('&').forEach(param => {
+      const [key, value] = param.split('=');
+      if (key && value) {
+        params[decodeURIComponent(key)] = decodeURIComponent(value);
+      }
+    });
+    return params;
+  };
+
   const handleDeepLink = (url) => {
     if (!url || !navigationRef.current) return;
 
     // Parse URL to extract payment success info
-    // Example: reev://payment-success?orderId=xxx&amount=xxx&transactionId=xxx
+    // Example: reev://payment-success?orderId=xxx&amount=xxx&transactionId=xxx&code=00&status=success
+    // hoặc: https://chargex.id.vn/payment-success?code=00&status=success&tx=xxx
     const match = url.match(/payment-success\?(.*)/);
     if (match) {
-      const params = new URLSearchParams(match[1]);
-      const orderId = params.get('orderId');
-      const amount = params.get('amount');
-      const transactionId = params.get('transactionId');
-      const status = params.get('status');
+      const params = parseUrlParams(match[1]);
+      const orderId = params.orderId;
+      const amount = params.amount;
+      const transactionId = params.transactionId || params.tx;
+      const status = params.status;
+      const code = params.code;
 
-      if (status === 'paid' || status === 'success') {
+      // Check code=00 for success
+      const isSuccess = code === '00' || status === 'paid' || status === 'success';
+
+      if (isSuccess) {
         navigationRef.current?.navigate('PaymentSuccess', {
           order: { orderId, grandTotal: amount },
           transactionId,
+          code,
+          status,
         });
+      } else {
+        // Handle error case
+        console.error('Payment failed:', { code, status });
+        // Could navigate to error screen if needed
       }
     }
   };
