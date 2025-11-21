@@ -45,7 +45,7 @@ function RootStack() {
       <Stack.Screen
         name="Detail"
         component={DetailScreen}
-        options={{ title: 'Chi tiết sản phẩm' }}
+        options={{ headerShown: false }}
       />
 
       {/* 💳 Thanh toán */}

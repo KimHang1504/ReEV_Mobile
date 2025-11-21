@@ -340,6 +340,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     ...shadows.md,
+    minHeight: 180, // Cố định chiều cao tối thiểu cho card
   },
   cardHeader: {
     flexDirection: 'row',
@@ -349,6 +350,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: colors.divider,
+    minHeight: 60, // Cố định chiều cao tối thiểu cho header
   },
   orderInfo: {
     flex: 1,
@@ -372,6 +374,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.sm,
     borderWidth: 1,
     gap: spacing.xs,
+    minHeight: 24, // Cố định chiều cao tối thiểu
   },
   statusDot: {
     width: 6,
@@ -398,6 +401,7 @@ const styles = StyleSheet.create({
     padding: spacing.sm,
     backgroundColor: colors.background,
     borderRadius: borderRadius.md,
+    minHeight: 100, // Cố định chiều cao tối thiểu cho section
   },
   productImage: {
     width: 80,
@@ -413,6 +417,8 @@ const styles = StyleSheet.create({
     ...typography.bodyBold,
     color: colors.text,
     marginBottom: spacing.xs,
+    height: 40, // Cố định height cho 2 dòng
+    lineHeight: 20,
   },
   itemCount: {
     ...typography.caption,
@@ -442,6 +448,7 @@ const styles = StyleSheet.create({
     paddingTop: spacing.sm,
     borderTopWidth: 1,
     borderTopColor: colors.divider,
+    minHeight: 40, // Cố định chiều cao tối thiểu cho footer
   },
   footerLeft: {
     flexDirection: 'row',

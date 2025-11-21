@@ -445,10 +445,6 @@ const AuctionRoomScreen = () => {
     </SafeAreaView>
   );
 };
-      </ScrollView>
-    </SafeAreaView>
-  );
-};
 
 export default AuctionRoomScreen;
 
